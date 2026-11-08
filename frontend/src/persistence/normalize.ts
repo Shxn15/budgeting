@@ -7,14 +7,19 @@
  */
 import { isAccountColor, nextAccountColor } from '../domain/colors';
 import { isISODate, toISODate } from '../domain/dates';
+import { isImageDataUrl } from '../domain/images';
 import { MAX_CENTS } from '../domain/money';
+import { MAX_INTERVAL_COUNT } from '../domain/subscriptions';
 import type {
   Account,
   AccountType,
   AppData,
+  IntervalUnit,
   Obligation,
   ObligationKind,
   Settings,
+  Subscription,
+  Tag,
   ThemePreference,
   Transaction,
   TransactionKind,
@@ -23,8 +28,17 @@ import { isRawDocument, type RawDocument } from './migrations';
 import { CURRENT_SCHEMA_VERSION, DEFAULT_CURRENCY } from './schema';
 
 const ACCOUNT_TYPES: readonly AccountType[] = ['cash', 'bank', 'savings', 'card', 'investment', 'other'];
-const TRANSACTION_KINDS: readonly TransactionKind[] = ['opening', 'adjustment', 'transfer', 'payment'];
+const TRANSACTION_KINDS: readonly TransactionKind[] = [
+  'opening',
+  'adjustment',
+  'transfer',
+  'payment',
+  'income',
+  'expense',
+  'subscription',
+];
 const OBLIGATION_KINDS: readonly ObligationKind[] = ['debt', 'bill'];
+const INTERVAL_UNITS: readonly IntervalUnit[] = ['week', 'month', 'year'];
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 
 function str(value: unknown, fallback = ''): string {
@@ -55,6 +69,15 @@ function timestamp(value: unknown, fallback: string): string {
 
 function list(value: unknown): RawDocument[] {
   return Array.isArray(value) ? value.filter(isRawDocument) : [];
+}
+
+function image(value: unknown): string | null {
+  return isImageDataUrl(value) ? value : null;
+}
+
+/** Keeps a reference only if the referenced entry exists. */
+function ref(value: string | null, existing: ReadonlySet<string>): string | null {
+  return value !== null && existing.has(value) ? value : null;
 }
 
 function normalizeAccounts(raw: unknown, now: string): Account[] {
@@ -98,6 +121,9 @@ function normalizeTransactions(raw: unknown, now: string): Transaction[] {
       date: isISODate(item.date) ? item.date : toISODate(new Date(createdAt)),
       note: str(item.note),
       obligationId: nullableStr(item.obligationId),
+      subscriptionId: nullableStr(item.subscriptionId),
+      tagId: nullableStr(item.tagId),
+      affectsBalance: item.affectsBalance !== false,
       createdAt,
     });
   }
@@ -120,6 +146,7 @@ function normalizeObligations(raw: unknown, now: string): Obligation[] {
       amount: Math.abs(amount),
       dueDate: isISODate(item.dueDate) ? item.dueDate : null,
       accountId: nullableStr(item.accountId),
+      tagId: nullableStr(item.tagId),
       note: str(item.note),
       createdAt: timestamp(item.createdAt, now),
       paidAt: typeof item.paidAt === 'string' && item.paidAt !== '' ? timestamp(item.paidAt, now) : null,
@@ -127,6 +154,67 @@ function normalizeObligations(raw: unknown, now: string): Obligation[] {
     });
   }
   return obligations;
+}
+
+function normalizeTags(raw: unknown, now: string): Tag[] {
+  const tags: Tag[] = [];
+  const seen = new Set<string>();
+  for (const item of list(raw)) {
+    const tagId = id(item.id);
+    if (tagId === null || seen.has(tagId)) continue;
+    seen.add(tagId);
+    tags.push({
+      id: tagId,
+      name: str(item.name).trim() || 'Tag',
+      color: isAccountColor(item.color) ? item.color : nextAccountColor(tags),
+      image: image(item.image),
+      createdAt: timestamp(item.createdAt, now),
+    });
+  }
+  return tags;
+}
+
+function normalizeSubscriptions(raw: unknown, now: string): Subscription[] {
+  const subscriptions: Subscription[] = [];
+  const seen = new Set<string>();
+  const today = toISODate(new Date(now));
+  for (const item of list(raw)) {
+    const subId = id(item.id);
+    const amount = cents(item.amount);
+    if (subId === null || amount === null || seen.has(subId)) continue;
+    seen.add(subId);
+    const unit = oneOf(item.intervalUnit, INTERVAL_UNITS, 'month');
+    const count =
+      typeof item.intervalCount === 'number' &&
+      Number.isInteger(item.intervalCount) &&
+      item.intervalCount >= 1 &&
+      item.intervalCount <= MAX_INTERVAL_COUNT[unit]
+        ? item.intervalCount
+        : 1;
+    const nextDueDate = isISODate(item.nextDueDate)
+      ? item.nextDueDate
+      : isISODate(item.anchorDate)
+        ? item.anchorDate
+        : today;
+    const accountId = nullableStr(item.accountId);
+    subscriptions.push({
+      id: subId,
+      name: str(item.name).trim() || 'Abo',
+      amount: Math.abs(amount),
+      intervalUnit: unit,
+      intervalCount: count,
+      anchorDate: isISODate(item.anchorDate) && item.anchorDate <= nextDueDate ? item.anchorDate : nextDueDate,
+      nextDueDate,
+      accountId,
+      autoPay: item.autoPay === true && accountId !== null,
+      color: isAccountColor(item.color) ? item.color : nextAccountColor(subscriptions),
+      image: image(item.image),
+      note: str(item.note),
+      paused: item.paused === true,
+      createdAt: timestamp(item.createdAt, now),
+    });
+  }
+  return subscriptions;
 }
 
 function normalizeSettings(raw: unknown): Settings {
@@ -143,17 +231,27 @@ export function normalizeData(doc: RawDocument, appVersion: string, now: Date = 
   const meta = isRawDocument(doc.meta) ? doc.meta : {};
   const accounts = normalizeAccounts(doc.accounts, nowIso);
   const accountIds = new Set(accounts.map((a) => a.id));
-  const transactions = normalizeTransactions(doc.transactions, nowIso);
+  const tags = normalizeTags(doc.tags, nowIso);
+  const tagIds = new Set(tags.map((t) => t.id));
+  const subscriptions = normalizeSubscriptions(doc.subscriptions, nowIso).map((sub) => {
+    const accountId = ref(sub.accountId, accountIds);
+    return { ...sub, accountId, autoPay: sub.autoPay && accountId !== null };
+  });
+  const subscriptionIds = new Set(subscriptions.map((s) => s.id));
+
+  // Drop references to things that no longer exist.
+  const transactions = normalizeTransactions(doc.transactions, nowIso).map((t) => ({
+    ...t,
+    tagId: ref(t.tagId, tagIds),
+    subscriptionId: ref(t.subscriptionId, subscriptionIds),
+  }));
   const transactionIds = new Set(transactions.map((t) => t.id));
 
   const obligations = normalizeObligations(doc.obligations, nowIso).map((o) => ({
     ...o,
-    // Drop references to things that no longer exist.
-    accountId: o.accountId !== null && accountIds.has(o.accountId) ? o.accountId : null,
-    paymentTransactionId:
-      o.paymentTransactionId !== null && transactionIds.has(o.paymentTransactionId)
-        ? o.paymentTransactionId
-        : null,
+    accountId: ref(o.accountId, accountIds),
+    tagId: ref(o.tagId, tagIds),
+    paymentTransactionId: ref(o.paymentTransactionId, transactionIds),
   }));
 
   return {
@@ -161,6 +259,8 @@ export function normalizeData(doc: RawDocument, appVersion: string, now: Date = 
     accounts,
     transactions,
     obligations,
+    tags,
+    subscriptions,
     settings: normalizeSettings(doc.settings),
     meta: {
       createdAt: timestamp(meta.createdAt, nowIso),

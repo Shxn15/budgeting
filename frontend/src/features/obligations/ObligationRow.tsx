@@ -3,21 +3,25 @@ import { formatDateCompact, toISODate } from '../../domain/dates';
 import { formatMoney } from '../../domain/money';
 import { dueState, isOpen, obligationTitle } from '../../domain/obligations';
 import type { ISODate, Obligation } from '../../domain/types';
+import { Avatar } from '../../components/avatar/Avatar';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { cx } from '../../components/ui/cx';
 import { Menu } from '../../components/ui/Menu';
 import { deleteObligation, reopenObligation } from '../../store/actions';
-import { useAccountMap, useCurrency } from '../../store/selectors';
+import { useAccountMap, useCurrency, useTagMap } from '../../store/selectors';
 import { useUiStore } from '../../store/uiStore';
 import { DueBadge, OBLIGATION_KINDS } from './obligationUi';
 import './ObligationRow.css';
 
-function subtitle(o: Obligation, accountName: string | undefined): string {
+function subtitle(o: Obligation, accountName: string | undefined, tagName: string | undefined): string {
   const parts: string[] = [];
   const who = o.counterparty.trim();
-  if (o.title.trim() && who) parts.push(o.kind === 'debt' ? `bei ${who}` : `an ${who}`);
-  if (!o.title.trim() && !who) parts.push(OBLIGATION_KINDS[o.kind].short);
+  const title = o.title.trim();
+  const same = (a: string, b: string) => a.toLocaleLowerCase('de') === b.toLocaleLowerCase('de');
+  if (tagName && !same(tagName, title) && !same(tagName, who)) parts.push(tagName);
+  if (title && who) parts.push(o.kind === 'debt' ? `bei ${who}` : `an ${who}`);
+  if (!title && !who && !tagName) parts.push(OBLIGATION_KINDS[o.kind].short);
   if (accountName) parts.push(`über ${accountName}`);
   return parts.join(' · ');
 }
@@ -26,11 +30,13 @@ export function ObligationRow({ obligation: o, today, compact }: { obligation: O
   const openDialog = useUiStore((s) => s.openDialog);
   const notify = useUiStore((s) => s.notify);
   const accounts = useAccountMap();
+  const tags = useTagMap();
   const currency = useCurrency();
   const Icon = OBLIGATION_KINDS[o.kind].icon;
   const open = isOpen(o);
   const state = open ? dueState(o, today) : null;
-  const meta = subtitle(o, o.accountId ? accounts.get(o.accountId)?.name : undefined);
+  const tag = o.tagId ? tags.get(o.tagId) : undefined;
+  const meta = subtitle(o, o.accountId ? accounts.get(o.accountId)?.name : undefined, tag?.name);
 
   const reopen = () => {
     reopenObligation(o.id);
@@ -54,9 +60,13 @@ export function ObligationRow({ obligation: o, today, compact }: { obligation: O
 
   return (
     <div className={cx('ob-row', state === 'overdue' && 'ob-row--overdue', !open && 'ob-row--done')}>
-      <span className={cx('ob-row__icon', `ob-row__icon--${o.kind}`)} aria-hidden>
-        <Icon />
-      </span>
+      {tag ? (
+        <Avatar name={tag.name} image={tag.image} color={tag.color} size={40} className="ob-row__avatar" title={tag.name} />
+      ) : (
+        <span className={cx('ob-row__icon', `ob-row__icon--${o.kind}`)} aria-hidden>
+          <Icon />
+        </span>
+      )}
       <div className="ob-row__main">
         <p className="ob-row__title">{obligationTitle(o)}</p>
         <div className="ob-row__meta">

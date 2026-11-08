@@ -10,18 +10,31 @@ export type Migration = (doc: RawDocument) => RawDocument;
  *  1. Increase CURRENT_SCHEMA_VERSION in schema.ts (e.g. to 2).
  *  2. Add MIGRATIONS[2] here that turns a version-1 document into version 2.
  *  3. Update domain/types.ts and normalize.ts.
- *  4. Add a test with a real version-1 document to migrations.test.ts.
+ *  4. Add a test with a real document of the old version to persistence.test.ts.
  *
  * Never change or delete a migration once it has been released – users may
  * skip versions, so every step must keep working forever. Before migrating,
  * the app automatically creates a backup of the old file.
  */
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
-  // Example:
-  // 2: (doc) => ({
-  //   ...doc,
-  //   accounts: (doc.accounts as RawDocument[]).map((a) => ({ ...a, archived: false })),
-  // }),
+  /**
+   * Version 0.2.0: tags (with pictures) and subscriptions (Abos).
+   * New lists `tags` and `subscriptions`; bookings get tagId, subscriptionId
+   * and affectsBalance, obligations get tagId. Nothing existing changes.
+   */
+  2: (doc) => ({
+    ...doc,
+    transactions: Array.isArray(doc.transactions)
+      ? doc.transactions.map((t) =>
+          isRawDocument(t) ? { tagId: null, subscriptionId: null, affectsBalance: true, ...t } : t,
+        )
+      : doc.transactions,
+    obligations: Array.isArray(doc.obligations)
+      ? doc.obligations.map((o) => (isRawDocument(o) ? { tagId: null, ...o } : o))
+      : doc.obligations,
+    tags: Array.isArray(doc.tags) ? doc.tags : [],
+    subscriptions: Array.isArray(doc.subscriptions) ? doc.subscriptions : [],
+  }),
 };
 
 /** The document was written by a newer app version. */

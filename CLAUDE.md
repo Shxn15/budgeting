@@ -13,6 +13,12 @@ Wails v2 (Go) shell + React 19 / TypeScript / Vite frontend. See README.md (Germ
 - All data changes are pure functions in `domain/operations.ts` (with tests), exposed via `store/actions.ts`.
 - Account colours are palette keys (`domain/colors.ts`, CSS vars `--series-*`); keep the palette order.
 - Styling: CSS variables from `styles/tokens.css` only (light + dark), co-located `.css` per component.
+- Profile pictures (tags, subscriptions) are small square data URLs stored inside data.json
+  (`domain/images.ts`, `components/avatar/imageProcessing.ts`) – never file paths, so backups contain them.
+- Subscriptions: charge dates are `anchorDate` + n × interval (`domain/subscriptions.ts`); due automatic charges are
+  booked by `processDueSubscriptions`, triggered from `app/App.tsx` (start, midnight, after changes).
+- Statistics count `expense`, `payment` and `subscription` bookings, grouped by tag (`domain/spending.ts`).
+- Bookings with `affectsBalance: false` are statistics-only; `computeBalances` skips them.
 
 ## Delivering builds (user's explicit wish)
 
@@ -26,7 +32,7 @@ The user's data must survive every update.
 - Never change `dataDirName` in `main.go` (data lives in `%APPDATA%\Budgeting`).
 - Any change to the stored document format: bump `CURRENT_SCHEMA_VERSION`, add a migration in
   `persistence/migrations.ts`, update `normalize.ts`, add a test with a real old file.
-- Never edit released migrations or the `SCHEMA_1_FILE` fixture in `persistence/persistence.test.ts`.
+- Never edit released migrations or the `SCHEMA_1_FILE` / `SCHEMA_2_FILE` fixtures in `persistence/persistence.test.ts`.
 - A file with a newer schema version must stay untouched (read-only screen).
 
 ## Commands

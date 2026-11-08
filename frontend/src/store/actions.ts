@@ -5,7 +5,7 @@
  * as DomainError and shown by the calling dialog.
  */
 import * as ops from '../domain/operations';
-import type { AppData, Cents, Settings } from '../domain/types';
+import type { AppData, Cents, ISODate, Settings, Transaction } from '../domain/types';
 import { useDataStore } from './dataStore';
 
 function apply(change: (data: AppData) => AppData): void {
@@ -42,5 +42,36 @@ export const deleteObligation = (id: string) => apply((d) => ops.deleteObligatio
 export const markObligationPaid = (id: string, input: ops.PayObligationInput) =>
   apply((d) => ops.markObligationPaid(d, id, input));
 export const reopenObligation = (id: string) => apply((d) => ops.reopenObligation(d, id));
+
+export const addBooking = (input: ops.BookingInput) => apply((d) => ops.addBooking(d, input));
+export const updateBooking = (id: string, input: ops.BookingInput) => apply((d) => ops.updateBooking(d, id, input));
+
+/** Creates a tag and returns its id. */
+export function addTag(input: ops.TagInput): string {
+  apply((d) => ops.addTag(d, input));
+  return useDataStore.getState().data.tags.at(-1)!.id;
+}
+export const updateTag = (id: string, input: ops.TagInput) => apply((d) => ops.updateTag(d, id, input));
+export const deleteTag = (id: string) => apply((d) => ops.deleteTag(d, id));
+
+export const addSubscription = (input: ops.SubscriptionInput) => apply((d) => ops.addSubscription(d, input));
+export const updateSubscription = (id: string, input: ops.SubscriptionInput) =>
+  apply((d) => ops.updateSubscription(d, id, input));
+export const deleteSubscription = (id: string) => apply((d) => ops.deleteSubscription(d, id));
+export const paySubscription = (id: string, input: ops.PaySubscriptionInput) =>
+  apply((d) => ops.paySubscription(d, id, input));
+export const skipSubscriptionCharge = (id: string) => apply((d) => ops.skipSubscriptionCharge(d, id));
+export const setSubscriptionPaused = (id: string, paused: boolean) =>
+  apply((d) => ops.setSubscriptionPaused(d, id, paused));
+
+/** Books all due automatic subscription charges; returns the new bookings. */
+export function runAutoPay(today: ISODate): Transaction[] {
+  const before = useDataStore.getState().data;
+  apply((d) => ops.processDueSubscriptions(d, today));
+  const after = useDataStore.getState().data;
+  if (after === before) return [];
+  const known = new Set(before.transactions.map((t) => t.id));
+  return after.transactions.filter((t) => !known.has(t.id));
+}
 
 export const updateSettings = (patch: Partial<Settings>) => apply((d) => ops.updateSettings(d, patch));

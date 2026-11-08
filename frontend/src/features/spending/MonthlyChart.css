@@ -1,0 +1,126 @@
+.mchart {
+  position: relative;
+  width: 100%;
+}
+
+.mchart__svg {
+  display: block;
+  overflow: visible;
+}
+
+.mchart__svg:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+  border-radius: var(--radius-xs);
+}
+
+.mchart__grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.mchart__axis {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.mchart__tick,
+.mchart__month {
+  fill: var(--text-3);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mchart__year {
+  fill: var(--text-3);
+  font-size: 10.5px;
+  opacity: 0.8;
+}
+
+.mchart__value {
+  fill: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.mchart__hit {
+  fill: transparent;
+}
+
+.mchart__col.is-clickable {
+  cursor: pointer;
+}
+
+.mchart__bar {
+  fill: var(--accent);
+  transition:
+    fill var(--dur-fast) var(--ease-out),
+    d var(--dur-slow) var(--ease-out);
+}
+
+.mchart__col.is-context .mchart__bar {
+  fill: var(--series-other);
+}
+
+.mchart__col.is-active .mchart__bar {
+  fill: var(--accent-hover);
+}
+
+.mchart__col.is-context.is-active .mchart__bar {
+  fill: var(--text-3);
+}
+
+.mchart__col.is-active .mchart__hit {
+  fill: var(--surface-hover);
+  opacity: 0.6;
+}
+
+.mchart__empty {
+  position: absolute;
+  top: 42%;
+  left: 58px;
+  right: 0;
+  color: var(--text-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.mchart__tooltip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.mchart__tooltip.is-below {
+  transform: translate(-50%, 0);
+}
+
+.mchart__tooltip strong {
+  font-size: 14px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+}
+
+.mchart__tooltip span {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.mchart__tooltip .mchart__tooltip-hint {
+  color: var(--text-3);
+  font-size: 11px;
+}

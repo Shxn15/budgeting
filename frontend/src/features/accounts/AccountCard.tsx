@@ -1,16 +1,16 @@
-import { ArrowLeftRight, Pencil, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, Minus, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { CSSProperties } from 'react';
 import { accountColorCss } from '../../domain/colors';
 import { formatMoney } from '../../domain/money';
 import type { Account, Cents } from '../../domain/types';
-import { Button } from '../../components/ui/Button';
+import { Button, IconButton } from '../../components/ui/Button';
 import { cx } from '../../components/ui/cx';
 import { Menu } from '../../components/ui/Menu';
 import { useUiStore } from '../../store/uiStore';
 import { AccountIcon } from './AccountIcon';
+import { accountMenu } from './accountMenu';
 import { accountTypeInfo } from './accountTypes';
-import { confirmDeleteAccount } from './confirmDeleteAccount';
 import './AccountCard.css';
 
 interface AccountCardProps {
@@ -25,6 +25,7 @@ const percent = new Intl.NumberFormat('de-DE', { style: 'percent', maximumFracti
 
 export function AccountCard({ account, balance, share, currency }: AccountCardProps) {
   const openDialog = useUiStore((s) => s.openDialog);
+  const openAccount = useUiStore((s) => s.openAccount);
   const highlight = useUiStore((s) => s.highlight);
   const setHighlight = useUiStore((s) => s.setHighlight);
   const typeInfo = accountTypeInfo(account.type);
@@ -41,6 +42,16 @@ export function AccountCard({ account, balance, share, currency }: AccountCardPr
       onPointerEnter={() => setHighlight(account.id)}
       onPointerLeave={() => setHighlight(null)}
     >
+      {/* The whole card opens the account; buttons inside sit on top of this. */}
+      <button
+        type="button"
+        className="account-card__open"
+        aria-label={`${account.name} öffnen – ${formatMoney(balance, currency)}`}
+        onClick={() => openAccount(account.id)}
+        onFocus={() => setHighlight(account.id)}
+        onBlur={() => setHighlight(null)}
+      />
+
       <header className="account-card__header">
         <AccountIcon account={account} size={42} />
         <div className="account-card__titles">
@@ -51,24 +62,9 @@ export function AccountCard({ account, balance, share, currency }: AccountCardPr
             <p className="account-card__type">{typeInfo.label}</p>
           )}
         </div>
-        <Menu
-          label={`Aktionen für ${account.name}`}
-          items={[
-            {
-              label: 'Kontostand ändern',
-              icon: <PencilLine />,
-              onSelect: () => openDialog({ type: 'balance', accountId: account.id }),
-            },
-            {
-              label: 'Geld umbuchen',
-              icon: <ArrowLeftRight />,
-              onSelect: () => openDialog({ type: 'transfer', fromAccountId: account.id }),
-            },
-            { label: 'Bearbeiten', icon: <Pencil />, onSelect: () => openDialog({ type: 'account', accountId: account.id }) },
-            'separator',
-            { label: 'Löschen', icon: <Trash2 />, danger: true, onSelect: () => confirmDeleteAccount(account) },
-          ]}
-        />
+        <div className="account-card__menu">
+          <Menu label={`Aktionen für ${account.name}`} items={accountMenu(account)} />
+        </div>
       </header>
 
       <p className={cx('account-card__balance', balance < 0 && 'amount-negative')}>{formatMoney(balance, currency)}</p>
@@ -86,19 +82,26 @@ export function AccountCard({ account, balance, share, currency }: AccountCardPr
         <Button
           size="sm"
           variant="ghost"
-          icon={<PencilLine />}
-          onClick={() => openDialog({ type: 'balance', accountId: account.id })}
+          icon={<Plus />}
+          onClick={() => openDialog({ type: 'booking', kind: 'income', accountId: account.id })}
         >
-          Kontostand
+          Hinzufügen
         </Button>
         <Button
           size="sm"
           variant="ghost"
-          icon={<ArrowLeftRight />}
-          onClick={() => openDialog({ type: 'transfer', fromAccountId: account.id })}
+          icon={<Minus />}
+          onClick={() => openDialog({ type: 'booking', kind: 'expense', accountId: account.id })}
         >
-          Umbuchen
+          Entfernen
         </Button>
+        <IconButton
+          label="Geld umbuchen"
+          size="sm"
+          icon={<ArrowLeftRight />}
+          className="account-card__transfer"
+          onClick={() => openDialog({ type: 'transfer', fromAccountId: account.id })}
+        />
       </footer>
     </motion.article>
   );

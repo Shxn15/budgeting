@@ -7,11 +7,12 @@ import './ColorSwatches.css';
 interface ColorSwatchesProps {
   value: string;
   onChange(color: string): void;
+  size?: 'sm' | 'md';
 }
 
-export function ColorSwatches({ value, onChange }: ColorSwatchesProps) {
+export function ColorSwatches({ value, onChange, size = 'md' }: ColorSwatchesProps) {
   return (
-    <div className="swatches" role="radiogroup" aria-label="Farbe">
+    <div className={cx('swatches', size === 'sm' && 'swatches--sm')} role="radiogroup" aria-label="Farbe">
       {ACCOUNT_COLORS.map((color) => {
         const active = color.key === value;
         return (

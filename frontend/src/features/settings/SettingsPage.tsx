@@ -20,6 +20,8 @@ export function SettingsPage() {
   const accountCount = useDataStore((s) => s.data.accounts.length);
   const transactionCount = useDataStore((s) => s.data.transactions.length);
   const obligationCount = useDataStore((s) => s.data.obligations.length);
+  const subscriptionCount = useDataStore((s) => s.data.subscriptions.length);
+  const tagCount = useDataStore((s) => s.data.tags.length);
   const notify = useUiStore((s) => s.notify);
   const [busy, setBusy] = useState(false);
   const isDesktop = appInfo?.platform !== 'browser';
@@ -120,6 +122,14 @@ export function SettingsPage() {
           <div>
             <dt>Zahlungen &amp; Schulden</dt>
             <dd>{obligationCount}</dd>
+          </div>
+          <div>
+            <dt>Abos</dt>
+            <dd>{subscriptionCount}</dd>
+          </div>
+          <div>
+            <dt>Tags</dt>
+            <dd>{tagCount}</dd>
           </div>
         </dl>
       </Card>

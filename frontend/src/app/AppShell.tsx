@@ -7,12 +7,14 @@ import './AppShell.css';
 
 export function AppShell() {
   const page = useUiStore((s) => s.page);
+  const accountId = useUiStore((s) => s.accountId);
   const mainRef = useRef<HTMLElement>(null);
   const Page = (PAGES.find((p) => p.id === page) ?? PAGES[0]!).component;
+  const pageKey = page === 'account' ? `account:${accountId}` : page;
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
-  }, [page]);
+  }, [pageKey]);
 
   return (
     <div className="shell">
@@ -20,7 +22,7 @@ export function AppShell() {
       <main className="shell__main" ref={mainRef}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={page}
+            key={pageKey}
             className="shell__page"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}

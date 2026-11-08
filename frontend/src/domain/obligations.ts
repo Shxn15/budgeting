@@ -14,25 +14,43 @@ export function daysUntilDue(o: Obligation, today: ISODate): number | null {
   return o.dueDate === null ? null : diffDays(today, o.dueDate);
 }
 
-export function dueState(o: Obligation, today: ISODate): DueState {
-  const days = daysUntilDue(o, today);
-  if (days === null) return 'none';
+/** Urgency of anything that is due on `date` (null = no date). */
+export function dueStateForDate(date: ISODate | null, today: ISODate): DueState {
+  if (date === null) return 'none';
+  const days = diffDays(today, date);
   if (days < 0) return 'overdue';
   if (days === 0) return 'today';
   if (days <= DUE_SOON_DAYS) return 'soon';
   return 'upcoming';
 }
 
+export function dueState(o: Obligation, today: ISODate): DueState {
+  return dueStateForDate(o.dueDate, today);
+}
+
 /** "seit 2 Tagen überfällig", "heute fällig", "fällig in 5 Tagen", ... */
-export function dueLabel(o: Obligation, today: ISODate): string {
-  const days = daysUntilDue(o, today);
-  if (days === null) return 'ohne Fälligkeit';
+export function dueLabelForDate(date: ISODate | null, today: ISODate): string {
+  if (date === null) return 'ohne Fälligkeit';
+  const days = diffDays(today, date);
   if (days === 0) return 'heute fällig';
   if (days === 1) return 'morgen fällig';
   if (days === -1) return 'seit gestern überfällig';
   if (days < 0) return `seit ${-days} Tagen überfällig`;
   if (days <= 31) return `fällig ${relativeDays(days)}`;
-  return `fällig am ${formatDate(o.dueDate!)}`;
+  return `fällig am ${formatDate(date)}`;
+}
+
+export function dueLabel(o: Obligation, today: ISODate): string {
+  return dueLabelForDate(o.dueDate, today);
+}
+
+/** For automatic charges: "wird heute abgebucht", "Abbuchung in 5 Tagen", ... */
+export function chargeLabel(date: ISODate, today: ISODate): string {
+  const days = diffDays(today, date);
+  if (days <= 0) return 'wird heute abgebucht';
+  if (days === 1) return 'wird morgen abgebucht';
+  if (days <= 31) return `Abbuchung ${relativeDays(days)}`;
+  return `Abbuchung am ${formatDate(date)}`;
 }
 
 /** Headline of an obligation, e.g. "Miete" or "Schulden bei Max". */
@@ -60,6 +78,6 @@ export function openObligations(list: readonly Obligation[]): Obligation[] {
   return sortByUrgency(list.filter(isOpen));
 }
 
-export function sumAmounts(list: readonly Obligation[]): Cents {
+export function sumAmounts(list: readonly { amount: Cents }[]): Cents {
   return list.reduce((sum, o) => sum + o.amount, 0);
 }

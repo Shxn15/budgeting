@@ -7,7 +7,7 @@ export function Badge({ tone = 'neutral', icon, children }: { tone?: BadgeTone; 
   return (
     <span className={`badge badge--${tone}`}>
       {icon}
-      {children}
+      <span className="badge__text">{children}</span>
     </span>
   );
 }

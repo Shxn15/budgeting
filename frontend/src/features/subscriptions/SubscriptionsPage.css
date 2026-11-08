@@ -1,0 +1,30 @@
+.sub-card__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sub-card__count {
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.sub-list {
+  padding: 8px;
+}
+
+.sub-card__paused {
+  border-top: 1px solid var(--border);
+}
+
+.sub-card__section-title {
+  padding: 14px 20px 0;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

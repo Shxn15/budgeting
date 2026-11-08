@@ -1,0 +1,67 @@
+.avatar {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 50%;
+  background: var(--surface-3);
+}
+
+/* A hairline ring keeps pictures with white edges round on light surfaces. */
+.avatar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--border);
+  pointer-events: none;
+}
+
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar--initials {
+  background: color-mix(in srgb, var(--avatar-color) 18%, var(--surface));
+  color: color-mix(in srgb, var(--avatar-color) 62%, var(--text));
+  transition:
+    background-color var(--dur-slow) var(--ease-out),
+    color var(--dur-slow) var(--ease-out);
+}
+
+.avatar--initials::after {
+  box-shadow: none;
+}
+
+.avatar__text {
+  font-size: calc(var(--avatar-size) * 0.4);
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.avatar__badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: max(16px, calc(var(--avatar-size) * 0.4));
+  height: max(16px, calc(var(--avatar-size) * 0.4));
+  background: var(--surface);
+  border-radius: 50%;
+  color: var(--accent-text);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.avatar__badge svg {
+  width: 62%;
+  height: 62%;
+  stroke-width: 2.4;
+}

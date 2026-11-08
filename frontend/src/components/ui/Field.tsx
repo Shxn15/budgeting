@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, ReactNode, Ref, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import { cx } from './cx';
 import './Field.css';
 
@@ -35,6 +35,7 @@ export function Field({ label, htmlFor, hint, error, children, aside }: FieldPro
 }
 
 interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {
+  ref?: Ref<HTMLInputElement>;
   invalid?: boolean;
   /** Text shown in front of the value, e.g. "in". */
   leading?: ReactNode;

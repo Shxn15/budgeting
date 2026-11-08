@@ -1,0 +1,18 @@
+.profile-fields {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-fields__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-fields.is-cropping {
+  display: block;
+}
+
+.profile-fields.is-cropping .profile-fields__name {
+  display: none;
+}

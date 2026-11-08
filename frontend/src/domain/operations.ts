@@ -6,24 +6,33 @@
 import { isAccountColor } from './colors';
 import { isISODate, todayISO } from './dates';
 import { defaultEnv, type Env } from './env';
+import { isImageDataUrl } from './images';
 import { computeBalances } from './ledger';
 import { MAX_CENTS } from './money';
 import { isOpen, obligationTitle } from './obligations';
+import { followingDueDate, MAX_INTERVAL_COUNT, nextOccurrenceOnOrAfter } from './subscriptions';
 import type {
   Account,
   AccountType,
   AppData,
   Cents,
   ISODate,
+  IntervalUnit,
   Obligation,
   ObligationKind,
   Settings,
+  Subscription,
+  Tag,
   Transaction,
 } from './types';
 
 export const ACCOUNT_NAME_MAX = 40;
+export const NAME_MAX = 40;
 export const TEXT_MAX = 80;
 export const NOTE_MAX = 500;
+
+/** Safety limit: at most this many automatic charges per subscription in one go. */
+const MAX_AUTO_CHARGES = 500;
 
 /** A user-facing validation error (message is shown in the UI). */
 export class DomainError extends Error {
@@ -56,6 +65,28 @@ function findObligation(data: AppData, id: string): Obligation {
   return obligation;
 }
 
+function findTag(data: AppData, id: string): Tag {
+  const tag = data.tags.find((t) => t.id === id);
+  check(tag, 'Der Tag wurde nicht gefunden.');
+  return tag;
+}
+
+function findSubscription(data: AppData, id: string): Subscription {
+  const subscription = data.subscriptions.find((s) => s.id === id);
+  check(subscription, 'Das Abo wurde nicht gefunden.');
+  return subscription;
+}
+
+function checkTagRef(data: AppData, tagId: string | null): string | null {
+  if (tagId !== null) findTag(data, tagId);
+  return tagId;
+}
+
+function checkImage(image: string | null): string | null {
+  check(image === null || isImageDataUrl(image), 'Das Bild konnte nicht übernommen werden.');
+  return image;
+}
+
 function cleanText(value: string, max: number): string {
   return value.replace(/\s+/g, ' ').trim().slice(0, max);
 }
@@ -67,12 +98,15 @@ function cleanNote(value: string): string {
 function booking(
   env: Env,
   fields: Pick<Transaction, 'kind' | 'amount' | 'fromAccountId' | 'toAccountId' | 'date'> &
-    Partial<Pick<Transaction, 'note' | 'obligationId'>>,
+    Partial<Pick<Transaction, 'note' | 'obligationId' | 'subscriptionId' | 'tagId' | 'affectsBalance'>>,
 ): Transaction {
   return {
     id: env.newId(),
     note: '',
     obligationId: null,
+    subscriptionId: null,
+    tagId: null,
+    affectsBalance: true,
     ...fields,
     createdAt: env.now().toISOString(),
   };
@@ -175,11 +209,16 @@ export function deleteAccount(data: AppData, id: string): AppData {
     return next;
   });
 
+  const subscriptions = data.subscriptions.map((sub) =>
+    sub.accountId === id ? { ...sub, accountId: null, autoPay: false } : sub,
+  );
+
   return {
     ...data,
     accounts: data.accounts.filter((a) => a.id !== id),
     transactions,
     obligations,
+    subscriptions,
   };
 }
 
@@ -270,6 +309,8 @@ export interface ObligationInput {
   amount: Cents;
   dueDate: ISODate | null;
   accountId: string | null;
+  /** Optional tag (e.g. "PayPal"); a payment booking inherits it. */
+  tagId: string | null;
   note: string;
 }
 
@@ -283,6 +324,7 @@ function checkObligationInput(data: AppData, input: ObligationInput): Obligation
   checkAmount(input.amount);
   check(input.dueDate === null || isISODate(input.dueDate), 'Bitte ein gültiges Datum wählen.');
   if (input.accountId !== null) findAccount(data, input.accountId);
+  checkTagRef(data, input.tagId);
   return { ...input, title, counterparty, note: cleanNote(input.note) };
 }
 
@@ -299,11 +341,17 @@ export function addObligation(data: AppData, input: ObligationInput, env: Env = 
 }
 
 export function updateObligation(data: AppData, id: string, input: ObligationInput): AppData {
-  findObligation(data, id);
+  const existing = findObligation(data, id);
   const fields = checkObligationInput(data, input);
+  const paymentId = existing.paymentTransactionId;
   return {
     ...data,
     obligations: data.obligations.map((o) => (o.id === id ? { ...o, ...fields } : o)),
+    // The statistics follow a changed tag of an already paid obligation.
+    transactions:
+      paymentId !== null && existing.tagId !== fields.tagId
+        ? data.transactions.map((t) => (t.id === paymentId ? { ...t, tagId: fields.tagId } : t))
+        : data.transactions,
   };
 }
 
@@ -345,6 +393,7 @@ export function markObligationPaid(
       date: input.date,
       note: obligationTitle(obligation),
       obligationId: obligation.id,
+      tagId: obligation.tagId,
     });
     transactions = [...transactions, payment];
     paymentTransactionId = payment.id;
@@ -373,6 +422,282 @@ export function reopenObligation(data: AppData, id: string): AppData {
       o.id === id ? { ...o, paidAt: null, paymentTransactionId: null } : o,
     ),
   };
+}
+
+// ------------------------------------------------- income and expenses
+
+export type BookingKind = 'income' | 'expense';
+
+export interface BookingInput {
+  /** income = "Geld hinzufügen", expense = "Geld entfernen" / "Zahlung eintragen". */
+  kind: BookingKind;
+  accountId: string;
+  amount: Cents;
+  /** Today or in the past. */
+  date: ISODate;
+  tagId: string | null;
+  note: string;
+  /** false = only for the statistics, the balance stays the same. */
+  affectsBalance: boolean;
+}
+
+function checkBookingInput(data: AppData, input: BookingInput, env: Env) {
+  check(input.kind === 'income' || input.kind === 'expense', 'Unbekannte Buchungsart.');
+  findAccount(data, input.accountId);
+  checkAmount(input.amount);
+  check(isISODate(input.date), 'Bitte ein gültiges Datum wählen.');
+  check(input.date <= todayISO(env.now()), 'Das Datum darf nicht in der Zukunft liegen.');
+  checkTagRef(data, input.tagId);
+  const income = input.kind === 'income';
+  return {
+    kind: input.kind,
+    amount: input.amount,
+    fromAccountId: income ? null : input.accountId,
+    toAccountId: income ? input.accountId : null,
+    date: input.date,
+    tagId: input.tagId,
+    note: cleanNote(input.note),
+    affectsBalance: input.affectsBalance,
+  } satisfies Partial<Transaction>;
+}
+
+/** Adds money to an account (income) or takes it away (expense). */
+export function addBooking(data: AppData, input: BookingInput, env: Env = defaultEnv): AppData {
+  const fields = checkBookingInput(data, input, env);
+  return { ...data, transactions: [...data.transactions, booking(env, fields)] };
+}
+
+/** Changes an income or expense booking. */
+export function updateBooking(data: AppData, id: string, input: BookingInput, env: Env = defaultEnv): AppData {
+  const tx = data.transactions.find((t) => t.id === id);
+  check(tx, 'Die Buchung wurde nicht gefunden.');
+  check(tx.kind === 'income' || tx.kind === 'expense', 'Diese Buchung kann nicht bearbeitet werden.');
+  const fields = checkBookingInput(data, input, env);
+  return { ...data, transactions: data.transactions.map((t) => (t.id === id ? { ...t, ...fields } : t)) };
+}
+
+// -------------------------------------------------------------------- tags
+
+export interface TagInput {
+  name: string;
+  color: string;
+  image: string | null;
+}
+
+function checkTagInput(data: AppData, input: TagInput, ownId: string | null): TagInput {
+  const name = cleanText(input.name, NAME_MAX);
+  check(name.length > 0, 'Bitte gib dem Tag einen Namen.');
+  const key = name.toLocaleLowerCase('de');
+  check(
+    !data.tags.some((t) => t.id !== ownId && t.name.toLocaleLowerCase('de') === key),
+    `Den Tag „${name}“ gibt es schon.`,
+  );
+  check(isAccountColor(input.color), 'Ungültige Farbe.');
+  return { name, color: input.color, image: checkImage(input.image) };
+}
+
+/** Adds a tag; it is appended, so the new tag is `data.tags.at(-1)`. */
+export function addTag(data: AppData, input: TagInput, env: Env = defaultEnv): AppData {
+  const fields = checkTagInput(data, input, null);
+  const tag: Tag = { id: env.newId(), ...fields, createdAt: env.now().toISOString() };
+  return { ...data, tags: [...data.tags, tag] };
+}
+
+export function updateTag(data: AppData, id: string, input: TagInput): AppData {
+  findTag(data, id);
+  const fields = checkTagInput(data, input, id);
+  return { ...data, tags: data.tags.map((t) => (t.id === id ? { ...t, ...fields } : t)) };
+}
+
+/** Deletes a tag. Bookings and obligations keep existing, just without the tag. */
+export function deleteTag(data: AppData, id: string): AppData {
+  findTag(data, id);
+  return {
+    ...data,
+    tags: data.tags.filter((t) => t.id !== id),
+    transactions: data.transactions.map((t) => (t.tagId === id ? { ...t, tagId: null } : t)),
+    obligations: data.obligations.map((o) => (o.tagId === id ? { ...o, tagId: null } : o)),
+  };
+}
+
+// ----------------------------------------------------------- subscriptions
+
+export interface SubscriptionInput {
+  name: string;
+  amount: Cents;
+  intervalUnit: IntervalUnit;
+  intervalCount: number;
+  /** Date of the next charge. */
+  nextDueDate: ISODate;
+  accountId: string | null;
+  autoPay: boolean;
+  color: string;
+  image: string | null;
+  note: string;
+}
+
+function checkSubscriptionInput(data: AppData, input: SubscriptionInput, env: Env) {
+  const name = cleanText(input.name, NAME_MAX);
+  check(name.length > 0, 'Bitte gib dem Abo einen Namen.');
+  checkAmount(input.amount);
+  check(input.intervalUnit in MAX_INTERVAL_COUNT, 'Bitte ein gültiges Intervall wählen.');
+  check(
+    Number.isInteger(input.intervalCount) &&
+      input.intervalCount >= 1 &&
+      input.intervalCount <= MAX_INTERVAL_COUNT[input.intervalUnit],
+    'Bitte ein gültiges Intervall wählen.',
+  );
+  check(isISODate(input.nextDueDate), 'Bitte ein gültiges Datum für die nächste Abbuchung wählen.');
+  if (input.accountId !== null) findAccount(data, input.accountId);
+  const autoPay = input.autoPay && input.accountId !== null;
+  // A date in the past would book charges that are most likely already in the balance.
+  check(
+    !autoPay || input.nextDueDate >= todayISO(env.now()),
+    'Bei automatischer Abbuchung muss die nächste Abbuchung heute oder später sein.',
+  );
+  check(isAccountColor(input.color), 'Ungültige Farbe.');
+  return {
+    name,
+    amount: input.amount,
+    intervalUnit: input.intervalUnit,
+    intervalCount: input.intervalCount,
+    nextDueDate: input.nextDueDate,
+    accountId: input.accountId,
+    autoPay,
+    color: input.color,
+    image: checkImage(input.image),
+    note: cleanNote(input.note),
+  };
+}
+
+/** Adds a subscription. With autoPay, charges are booked by processDueSubscriptions. */
+export function addSubscription(data: AppData, input: SubscriptionInput, env: Env = defaultEnv): AppData {
+  const fields = checkSubscriptionInput(data, input, env);
+  const subscription: Subscription = {
+    id: env.newId(),
+    ...fields,
+    anchorDate: fields.nextDueDate,
+    paused: false,
+    createdAt: env.now().toISOString(),
+  };
+  return { ...data, subscriptions: [...data.subscriptions, subscription] };
+}
+
+export function updateSubscription(
+  data: AppData,
+  id: string,
+  input: SubscriptionInput,
+  env: Env = defaultEnv,
+): AppData {
+  const existing = findSubscription(data, id);
+  const fields = checkSubscriptionInput(data, input, env);
+  // A new date or interval starts a new schedule from that date.
+  const reschedule =
+    fields.nextDueDate !== existing.nextDueDate ||
+    fields.intervalUnit !== existing.intervalUnit ||
+    fields.intervalCount !== existing.intervalCount;
+  return {
+    ...data,
+    subscriptions: data.subscriptions.map((s) =>
+      s.id === id ? { ...s, ...fields, anchorDate: reschedule ? fields.nextDueDate : s.anchorDate } : s,
+    ),
+  };
+}
+
+/** Deletes a subscription. Past charges stay in the bookings (the money was really paid). */
+export function deleteSubscription(data: AppData, id: string): AppData {
+  findSubscription(data, id);
+  return {
+    ...data,
+    subscriptions: data.subscriptions.filter((s) => s.id !== id),
+    transactions: data.transactions.map((t) => (t.subscriptionId === id ? { ...t, subscriptionId: null } : t)),
+  };
+}
+
+function chargeBooking(env: Env, sub: Subscription, accountId: string, date: ISODate): Transaction {
+  return booking(env, {
+    kind: 'subscription',
+    amount: sub.amount,
+    fromAccountId: accountId,
+    toAccountId: null,
+    date,
+    note: sub.name,
+    subscriptionId: sub.id,
+  });
+}
+
+export interface PaySubscriptionInput {
+  accountId: string;
+  date: ISODate;
+}
+
+/** Books the current charge of a subscription manually and moves on to the next date. */
+export function paySubscription(
+  data: AppData,
+  id: string,
+  input: PaySubscriptionInput,
+  env: Env = defaultEnv,
+): AppData {
+  const sub = findSubscription(data, id);
+  check(!sub.paused, 'Das Abo ist pausiert.');
+  findAccount(data, input.accountId);
+  check(isISODate(input.date), 'Bitte ein gültiges Datum wählen.');
+  return {
+    ...data,
+    transactions: [...data.transactions, chargeBooking(env, sub, input.accountId, input.date)],
+    subscriptions: data.subscriptions.map((s) => (s.id === id ? { ...s, nextDueDate: followingDueDate(s) } : s)),
+  };
+}
+
+/** Skips the current charge without a booking (e.g. a free month). */
+export function skipSubscriptionCharge(data: AppData, id: string): AppData {
+  const sub = findSubscription(data, id);
+  check(!sub.paused, 'Das Abo ist pausiert.');
+  return {
+    ...data,
+    subscriptions: data.subscriptions.map((s) => (s.id === id ? { ...s, nextDueDate: followingDueDate(s) } : s)),
+  };
+}
+
+/**
+ * Pauses or resumes a subscription. Charges missed while it was paused are
+ * not booked: the next charge is the first scheduled date from today on.
+ */
+export function setSubscriptionPaused(data: AppData, id: string, paused: boolean, env: Env = defaultEnv): AppData {
+  const sub = findSubscription(data, id);
+  if (sub.paused === paused) return data;
+  const today = todayISO(env.now());
+  const nextDueDate = !paused && sub.nextDueDate < today ? nextOccurrenceOnOrAfter(sub, today) : sub.nextDueDate;
+  return {
+    ...data,
+    subscriptions: data.subscriptions.map((s) => (s.id === id ? { ...s, paused, nextDueDate } : s)),
+  };
+}
+
+/**
+ * Books every due charge of the subscriptions with automatic payment up to
+ * and including `today` (also several, if the app was closed for a while).
+ * Returns the same document if nothing is due.
+ */
+export function processDueSubscriptions(data: AppData, today: ISODate, env: Env = defaultEnv): AppData {
+  const accountIds = new Set(data.accounts.map((a) => a.id));
+  const charges: Transaction[] = [];
+  let changed = false;
+
+  const subscriptions = data.subscriptions.map((sub) => {
+    if (sub.paused || !sub.autoPay || sub.accountId === null || !accountIds.has(sub.accountId)) return sub;
+    if (sub.nextDueDate > today) return sub;
+    let current = sub;
+    for (let i = 0; current.nextDueDate <= today && i < MAX_AUTO_CHARGES; i++) {
+      charges.push(chargeBooking(env, current, sub.accountId, current.nextDueDate));
+      current = { ...current, nextDueDate: followingDueDate(current) };
+    }
+    changed = true;
+    return current;
+  });
+
+  if (!changed) return data;
+  return { ...data, subscriptions, transactions: [...data.transactions, ...charges] };
 }
 
 // ---------------------------------------------------------------- settings

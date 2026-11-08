@@ -3,19 +3,34 @@ import { nextAccountColor } from './colors';
 import { buildPortfolio, computeBalances, sumBalances } from './ledger';
 import { dueLabel, dueState, openObligations, sumAmounts } from './obligations';
 import {
+  addBooking,
   addObligation,
+  addSubscription,
+  addTag,
   createAccount,
   deleteAccount,
   deleteObligation,
+  deleteSubscription,
+  deleteTag,
   deleteTransaction,
   DomainError,
   markObligationPaid,
   moveAccount,
+  paySubscription,
+  processDueSubscriptions,
   reopenObligation,
   setAccountBalance,
+  setSubscriptionPaused,
+  skipSubscriptionCharge,
   transfer,
   updateAccount,
+  updateBooking,
+  updateObligation,
+  updateSubscription,
+  updateTag,
+  type BookingInput,
   type ObligationInput,
+  type SubscriptionInput,
 } from './operations';
 import { emptyData, testEnv } from './testing';
 import type { AppData } from './types';
@@ -47,6 +62,7 @@ const bill: ObligationInput = {
   amount: 2999,
   dueDate: '2026-11-13',
   accountId: null,
+  tagId: null,
   note: '',
 };
 
@@ -244,5 +260,235 @@ describe('portfolio (pie chart data)', () => {
       ['Sparkasse', 71.4],
     ]);
     expect(portfolio.negative.map((n) => n.account.name)).toEqual(['Revolut']);
+  });
+});
+
+/** A valid (1×1 px) picture as the UI would store it. */
+const PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+function withTags() {
+  const base = sample();
+  let data = addTag(base.data, { name: 'Rewe', color: 'red', image: null }, base.env);
+  data = addTag(data, { name: 'PayPal', color: 'blue', image: PIXEL }, base.env);
+  const [rewe, paypal] = data.tags as [AppData['tags'][number], AppData['tags'][number]];
+  return { ...base, data, rewe, paypal };
+}
+
+describe('tags', () => {
+  it('creates tags with a picture and rejects duplicates', () => {
+    const { data, env, rewe, paypal } = withTags();
+    expect(data.tags.map((t) => t.name)).toEqual(['Rewe', 'PayPal']);
+    expect(paypal.image).toBe(PIXEL);
+    expect(rewe.image).toBeNull();
+    expect(() => addTag(data, { name: ' rewe ', color: 'red', image: null }, env)).toThrow(/gibt es schon/);
+    expect(() => addTag(data, { name: '', color: 'red', image: null }, env)).toThrow(DomainError);
+    expect(() => addTag(data, { name: 'X', color: 'red', image: 'https://example.com/a.png' }, env)).toThrow(DomainError);
+    // Renaming a tag to its own name (other case) is fine.
+    expect(updateTag(data, rewe.id, { name: 'REWE', color: 'red', image: PIXEL }).tags[0]).toMatchObject({
+      name: 'REWE',
+      image: PIXEL,
+    });
+  });
+
+  it('removes a deleted tag from bookings and obligations but keeps them', () => {
+    const { data, env, cash, rewe } = withTags();
+    let next = addBooking(
+      data,
+      { kind: 'expense', accountId: cash.id, amount: 2350, date: '2026-11-07', tagId: rewe.id, note: '', affectsBalance: true },
+      env,
+    );
+    next = addObligation(next, { ...bill, tagId: rewe.id }, env);
+    next = deleteTag(next, rewe.id);
+    expect(next.tags.map((t) => t.name)).toEqual(['PayPal']);
+    expect(next.transactions.at(-1)).toMatchObject({ kind: 'expense', tagId: null, amount: 2350 });
+    expect(next.obligations[0]!.tagId).toBeNull();
+  });
+});
+
+describe('adding and removing money', () => {
+  const expense = (accountId: string, fields: Partial<BookingInput> = {}): BookingInput => ({
+    kind: 'expense',
+    accountId,
+    amount: 2350,
+    date: '2026-11-07',
+    tagId: null,
+    note: '',
+    affectsBalance: true,
+    ...fields,
+  });
+
+  it('adds and removes money relative to the current balance', () => {
+    const { data, env, bank, rewe } = withTags();
+    let next = addBooking(data, expense(bank.id, { tagId: rewe.id, note: ' Wocheneinkauf ' }), env);
+    expect(balances(next).Sparkasse).toBe(49900 - 2350);
+    expect(next.transactions.at(-1)).toMatchObject({
+      kind: 'expense',
+      fromAccountId: bank.id,
+      toAccountId: null,
+      tagId: rewe.id,
+      note: 'Wocheneinkauf',
+      date: '2026-11-07',
+    });
+    next = addBooking(next, expense(bank.id, { kind: 'income', amount: 150000, date: '2026-11-08' }), env);
+    expect(balances(next).Sparkasse).toBe(49900 - 2350 + 150000);
+    expect(next.transactions.at(-1)).toMatchObject({ kind: 'income', fromAccountId: null, toAccountId: bank.id });
+  });
+
+  it('can record a payment for the statistics only', () => {
+    const { data, env, bank } = withTags();
+    const next = addBooking(data, expense(bank.id, { affectsBalance: false }), env);
+    expect(balances(next).Sparkasse).toBe(49900);
+    expect(next.transactions.at(-1)!.affectsBalance).toBe(false);
+  });
+
+  it('validates the booking', () => {
+    const { data, env, bank } = withTags();
+    expect(() => addBooking(data, expense(bank.id, { amount: 0 }), env)).toThrow(DomainError);
+    expect(() => addBooking(data, expense(bank.id, { date: '2026-11-09' }), env)).toThrow(/Zukunft/);
+    expect(() => addBooking(data, expense('missing'), env)).toThrow(DomainError);
+    expect(() => addBooking(data, expense(bank.id, { tagId: 'missing' }), env)).toThrow(DomainError);
+  });
+
+  it('edits an income or expense booking', () => {
+    const { data, env, bank, cash, paypal } = withTags();
+    let next = addBooking(data, expense(bank.id), env);
+    const id = next.transactions.at(-1)!.id;
+    next = updateBooking(next, id, expense(cash.id, { amount: 1000, tagId: paypal.id }), env);
+    expect(balances(next)).toMatchObject({ Sparkasse: 49900, Bargeld: 20000 - 1000 });
+    expect(next.transactions.at(-1)).toMatchObject({ id, tagId: paypal.id, fromAccountId: cash.id });
+    const transferId = data.transactions[0]!.id; // an opening booking
+    expect(() => updateBooking(next, transferId, expense(cash.id), env)).toThrow(DomainError);
+  });
+});
+
+describe('obligations with tags', () => {
+  it('passes the tag on to the payment booking and keeps it in sync', () => {
+    const { data, env, bank, paypal, rewe } = withTags();
+    let next = addObligation(data, { ...bill, tagId: paypal.id }, env);
+    const id = next.obligations[0]!.id;
+    next = markObligationPaid(next, id, { accountId: bank.id, date: '2026-11-08' }, env);
+    expect(next.transactions.at(-1)).toMatchObject({ kind: 'payment', tagId: paypal.id });
+    next = updateObligation(next, id, { ...bill, tagId: rewe.id });
+    expect(next.transactions.at(-1)!.tagId).toBe(rewe.id);
+  });
+});
+
+describe('subscriptions', () => {
+  const netflix = (fields: Partial<SubscriptionInput> = {}): SubscriptionInput => ({
+    name: 'Netflix',
+    amount: 1299,
+    intervalUnit: 'month',
+    intervalCount: 1,
+    nextDueDate: '2026-11-15',
+    accountId: null,
+    autoPay: false,
+    color: 'red',
+    image: PIXEL,
+    note: '',
+    ...fields,
+  });
+
+  it('creates a subscription with its schedule', () => {
+    const { data, env, bank } = sample();
+    const next = addSubscription(data, netflix({ accountId: bank.id, autoPay: true }), env);
+    expect(next.subscriptions[0]).toMatchObject({
+      name: 'Netflix',
+      anchorDate: '2026-11-15',
+      nextDueDate: '2026-11-15',
+      autoPay: true,
+      paused: false,
+      image: PIXEL,
+    });
+    // Without an account there is nothing to charge automatically.
+    expect(addSubscription(data, netflix({ autoPay: true }), env).subscriptions[0]!.autoPay).toBe(false);
+  });
+
+  it('validates the input', () => {
+    const { data, env, bank } = sample();
+    expect(() => addSubscription(data, netflix({ name: ' ' }), env)).toThrow(DomainError);
+    expect(() => addSubscription(data, netflix({ amount: 0 }), env)).toThrow(DomainError);
+    expect(() => addSubscription(data, netflix({ intervalCount: 0 }), env)).toThrow(DomainError);
+    expect(() => addSubscription(data, netflix({ intervalUnit: 'day' as never }), env)).toThrow(DomainError);
+    expect(() => addSubscription(data, netflix({ nextDueDate: '2026-02-30' }), env)).toThrow(DomainError);
+    // Automatic charges in the past would most likely be counted twice.
+    expect(() => addSubscription(data, netflix({ accountId: bank.id, autoPay: true, nextDueDate: '2026-11-01' }), env)).toThrow(
+      /heute oder später/,
+    );
+    // Manual subscriptions may be overdue.
+    expect(addSubscription(data, netflix({ nextDueDate: '2026-11-01' }), env).subscriptions).toHaveLength(1);
+  });
+
+  it('books due charges automatically, also several missed ones', () => {
+    const { data, env, bank } = sample();
+    let next = addSubscription(data, netflix({ accountId: bank.id, autoPay: true, nextDueDate: '2026-11-15' }), env);
+    expect(processDueSubscriptions(next, '2026-11-14', env)).toBe(next); // nothing due yet
+
+    next = processDueSubscriptions(next, '2027-01-20', env);
+    const charges = next.transactions.filter((t) => t.kind === 'subscription');
+    expect(charges.map((t) => t.date)).toEqual(['2026-11-15', '2026-12-15', '2027-01-15']);
+    expect(charges[0]).toMatchObject({ amount: 1299, fromAccountId: bank.id, note: 'Netflix', subscriptionId: next.subscriptions[0]!.id });
+    expect(next.subscriptions[0]!.nextDueDate).toBe('2027-02-15');
+    expect(balances(next).Sparkasse).toBe(49900 - 3 * 1299);
+    // Running it again changes nothing.
+    expect(processDueSubscriptions(next, '2027-01-20', env)).toBe(next);
+  });
+
+  it('does not charge manual or paused subscriptions automatically', () => {
+    const { data, env, bank } = sample();
+    let next = addSubscription(data, netflix({ accountId: bank.id, autoPay: false }), env);
+    next = addSubscription(next, netflix({ name: 'Gym', accountId: bank.id, autoPay: true }), env);
+    next = setSubscriptionPaused(next, next.subscriptions[1]!.id, true, env);
+    expect(processDueSubscriptions(next, '2026-12-31', env)).toBe(next);
+  });
+
+  it('pays or skips a manual charge and moves to the next date', () => {
+    const { data, env, cash } = sample();
+    let next = addSubscription(data, netflix({ nextDueDate: '2026-01-31' }), env);
+    const id = next.subscriptions[0]!.id;
+    next = paySubscription(next, id, { accountId: cash.id, date: '2026-11-08' }, env);
+    expect(next.transactions.at(-1)).toMatchObject({ kind: 'subscription', amount: 1299, date: '2026-11-08' });
+    expect(next.subscriptions[0]!.nextDueDate).toBe('2026-02-28');
+    next = skipSubscriptionCharge(next, id);
+    expect(next.subscriptions[0]!.nextDueDate).toBe('2026-03-31'); // back on the 31st
+    expect(balances(next).Bargeld).toBe(20000 - 1299);
+  });
+
+  it('skips the charges missed while paused when resuming', () => {
+    const { data, env, bank } = sample();
+    let next = addSubscription(data, netflix({ accountId: bank.id, autoPay: true, nextDueDate: '2026-11-15' }), env);
+    const id = next.subscriptions[0]!.id;
+    const paused = setSubscriptionPaused(next, id, true, env);
+    env.advance(70 * 86_400_000); // 17 Jan 2027: 15 Nov, 15 Dec and 15 Jan were missed
+    expect(setSubscriptionPaused(paused, id, false, env).subscriptions[0]).toMatchObject({
+      paused: false,
+      nextDueDate: '2027-02-15',
+    });
+    env.advance(-2 * 86_400_000); // resumed exactly on a charge day (15 Jan)
+    expect(setSubscriptionPaused(paused, id, false, env).subscriptions[0]!.nextDueDate).toBe('2027-01-15');
+  });
+
+  it('restarts the schedule when the date or interval changes', () => {
+    const { data, env } = sample();
+    let next = addSubscription(data, netflix({ nextDueDate: '2026-11-30' }), env);
+    const id = next.subscriptions[0]!.id;
+    next = updateSubscription(next, id, netflix({ nextDueDate: '2026-11-30', amount: 1499 }), env);
+    expect(next.subscriptions[0]).toMatchObject({ amount: 1499, anchorDate: '2026-11-30' });
+    next = updateSubscription(next, id, netflix({ nextDueDate: '2026-12-03', intervalCount: 3 }), env);
+    expect(next.subscriptions[0]).toMatchObject({ anchorDate: '2026-12-03', intervalCount: 3 });
+  });
+
+  it('keeps past charges when a subscription or its account is deleted', () => {
+    const { data, env, bank, cash } = sample();
+    let next = addSubscription(data, netflix({ accountId: bank.id, autoPay: true }), env);
+    next = addSubscription(next, netflix({ name: 'Spotify', accountId: cash.id, autoPay: true }), env);
+    next = processDueSubscriptions(next, '2026-11-15', env);
+    const [netflixSub] = next.subscriptions;
+    next = deleteSubscription(next, netflixSub!.id);
+    expect(next.subscriptions.map((s) => s.name)).toEqual(['Spotify']);
+    const kept = next.transactions.find((t) => t.kind === 'subscription' && t.note === 'Netflix');
+    expect(kept).toMatchObject({ subscriptionId: null, fromAccountId: bank.id });
+
+    next = deleteAccount(next, cash.id);
+    expect(next.subscriptions[0]).toMatchObject({ accountId: null, autoPay: false });
   });
 });

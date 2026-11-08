@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, diffDays, formatDate, isISODate, relativeDays, toISODate } from './dates';
+import {
+  addDays,
+  addMonths,
+  addMonthsToKey,
+  diffDays,
+  formatDate,
+  formatMonth,
+  formatMonthRange,
+  isISODate,
+  isMonthKey,
+  monthDiff,
+  monthEnd,
+  monthKey,
+  monthsBetween,
+  monthStart,
+  relativeDays,
+  toISODate,
+} from './dates';
 
 describe('dates', () => {
   it('validates ISO dates', () => {
@@ -26,5 +43,37 @@ describe('dates', () => {
     expect(relativeDays(1)).toBe('morgen');
     expect(relativeDays(5)).toBe('in 5 Tagen');
     expect(relativeDays(-3)).toBe('vor 3 Tagen');
+  });
+});
+
+describe('months', () => {
+  it('adds months and clamps to the end of shorter months', () => {
+    expect(addMonths('2026-01-31', 1)).toBe('2026-02-28');
+    expect(addMonths('2028-01-31', 1)).toBe('2028-02-29');
+    expect(addMonths('2026-01-31', 2)).toBe('2026-03-31');
+    expect(addMonths('2026-11-15', 2)).toBe('2027-01-15');
+    expect(addMonths('2026-03-31', -1)).toBe('2026-02-28');
+    expect(addMonths('2024-02-29', 12)).toBe('2025-02-28');
+  });
+
+  it('works with month keys and ranges', () => {
+    expect(monthKey('2026-11-08')).toBe('2026-11');
+    expect(addMonthsToKey('2026-11', 2)).toBe('2027-01');
+    expect(addMonthsToKey('2026-01', -1)).toBe('2025-12');
+    expect(monthDiff('2025-12', '2026-11')).toBe(11);
+    expect(monthsBetween('2026-10', '2027-01')).toEqual(['2026-10', '2026-11', '2026-12', '2027-01']);
+    expect(monthsBetween('2026-11', '2026-10')).toEqual([]);
+    expect(monthStart('2026-02')).toBe('2026-02-01');
+    expect(monthEnd('2026-02')).toBe('2026-02-28');
+    expect(monthEnd('2028-02')).toBe('2028-02-29');
+    expect(isMonthKey('2026-13')).toBe(false);
+    expect(isMonthKey('2026-07')).toBe(true);
+  });
+
+  it('formats months in German', () => {
+    expect(formatMonth('2026-11')).toBe('November 2026');
+    expect(formatMonthRange('2026-07', '2026-11')).toBe('Juli – Nov. 2026');
+    expect(formatMonthRange('2025-12', '2026-02')).toBe('Dez. 2025 – Feb. 2026');
+    expect(formatMonthRange('2026-11', '2026-11')).toBe('November 2026');
   });
 });

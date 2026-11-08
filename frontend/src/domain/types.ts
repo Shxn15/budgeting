@@ -12,6 +12,9 @@ export type Cents = number;
 /** A calendar day in local time: "YYYY-MM-DD". */
 export type ISODate = string;
 
+/** A calendar month: "YYYY-MM". */
+export type MonthKey = string;
+
 /** A point in time: new Date().toISOString(). */
 export type ISODateTime = string;
 
@@ -29,17 +32,23 @@ export interface Account {
 /**
  * Kinds of bookings. The balance of an account is never stored directly; it
  * is always the sum of its bookings (see ledger.ts). That keeps a complete
- * history and makes statistics over time possible later on.
+ * history and makes statistics over time possible.
  */
 export type TransactionKind =
   /** Starting balance entered when the account was created. */
   | 'opening'
-  /** Manual correction of the balance ("Kontostand ändern"). */
+  /** Manual correction of the balance ("Kontostand korrigieren"). */
   | 'adjustment'
   /** Money moved between two own accounts. */
   | 'transfer'
   /** Payment of an obligation (debt or bill). */
-  | 'payment';
+  | 'payment'
+  /** Money added to an account ("Geld hinzufügen"), e.g. salary. Since schema 2. */
+  | 'income'
+  /** Money spent ("Geld entfernen", "Zahlung eintragen"), e.g. shopping at Rewe. Since schema 2. */
+  | 'expense'
+  /** A charge of a subscription (Abo). Since schema 2. */
+  | 'subscription';
 
 export interface Transaction {
   id: string;
@@ -54,6 +63,15 @@ export interface Transaction {
   note: string;
   /** Set when this booking pays an obligation. */
   obligationId: string | null;
+  /** Set when this booking is a charge of a subscription. Since schema 2. */
+  subscriptionId: string | null;
+  /** Tag for the statistics, e.g. "Rewe" or "PayPal". Since schema 2. */
+  tagId: string | null;
+  /**
+   * false = only recorded for the statistics, the balance stays the same
+   * (for payments that are already included in the balance). Since schema 2.
+   */
+  affectsBalance: boolean;
   createdAt: ISODateTime;
 }
 
@@ -72,12 +90,63 @@ export interface Obligation {
   dueDate: ISODate | null;
   /** Account it will (probably) be paid from. */
   accountId: string | null;
+  /** Tag (e.g. "PayPal", "MediaMarkt"); its picture is shown in the list. Since schema 2. */
+  tagId: string | null;
   note: string;
   createdAt: ISODateTime;
   /** null while the obligation is still open. */
   paidAt: ISODateTime | null;
   /** Booking created when it was paid from an account. */
   paymentTransactionId: string | null;
+}
+
+/**
+ * A label such as "Rewe", "PayPal" or "Max" that can be attached to
+ * bookings and obligations. The statistics group spending by tag.
+ * Since schema 2.
+ */
+export interface Tag {
+  id: string;
+  name: string;
+  /** Palette key (see colors.ts) for the initials avatar when there is no picture. */
+  color: string;
+  /** Profile picture: a small square image as data URL (shown round). null = initials. */
+  image: string | null;
+  createdAt: ISODateTime;
+}
+
+export type IntervalUnit = 'week' | 'month' | 'year';
+
+/**
+ * A recurring payment such as Netflix or the gym. Since schema 2.
+ *
+ * Charge dates are anchorDate + n × interval. Months are added with
+ * clamping, so a subscription on the 31st is charged on the last day of
+ * shorter months and on the 31st again afterwards.
+ */
+export interface Subscription {
+  id: string;
+  name: string;
+  amount: Cents;
+  /** Charged every `intervalCount` × `intervalUnit`, e.g. every 1 month or every 3 months. */
+  intervalUnit: IntervalUnit;
+  intervalCount: number;
+  /** Reference date of the schedule (reset whenever the date or interval is edited). */
+  anchorDate: ISODate;
+  /** Next charge that has not been booked yet. */
+  nextDueDate: ISODate;
+  /** Account it is charged to. */
+  accountId: string | null;
+  /** Book the charge automatically on the due date (needs an account). */
+  autoPay: boolean;
+  /** Palette key for the initials avatar when there is no picture. */
+  color: string;
+  /** Profile picture as data URL (shown round). null = initials. */
+  image: string | null;
+  note: string;
+  /** Paused subscriptions are not charged and not counted. */
+  paused: boolean;
+  createdAt: ISODateTime;
 }
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -101,6 +170,10 @@ export interface AppData {
   accounts: Account[];
   transactions: Transaction[];
   obligations: Obligation[];
+  /** Since schema 2. */
+  tags: Tag[];
+  /** Since schema 2. */
+  subscriptions: Subscription[];
   settings: Settings;
   meta: Meta;
 }

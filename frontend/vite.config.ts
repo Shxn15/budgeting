@@ -8,6 +8,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Local desktop app: the bundle is loaded from disk, size warnings are not useful.
+    chunkSizeWarningLimit: 1500,
   },
   server: {
     port: 5173,

@@ -1,0 +1,44 @@
+.booking__dates {
+  align-items: center;
+  margin-top: -6px;
+}
+
+.booking__date-note {
+  margin-left: 4px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.booking__balance {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.booking__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.booking__toggle input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.booking__toggle-title {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.booking__toggle-text {
+  display: block;
+  color: var(--text-3);
+  font-size: 12.5px;
+}

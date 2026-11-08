@@ -17,7 +17,12 @@ interface ModalProps {
 }
 
 const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Focusable and actually visible (hidden file inputs and collapsed fields are skipped). */
+function focusables(panel: HTMLElement): HTMLElement[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.getClientRects().length > 0);
+}
 
 /**
  * Dialog window. Render it inside <AnimatePresence> (see app/DialogHost.tsx)
@@ -46,7 +51,7 @@ export function Modal({ title, subtitle, onClose, children, footer, onSubmit, wi
         return;
       }
       if (event.key !== 'Tab' || !panel) return;
-      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+      const items = focusables(panel);
       if (items.length === 0) return;
       const firstItem = items[0]!;
       const lastItem = items[items.length - 1]!;

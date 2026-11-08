@@ -1,4 +1,5 @@
 .tx-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -66,14 +67,45 @@
   font-size: 14px;
   font-weight: 640;
   white-space: nowrap;
+  transition: transform var(--dur) var(--ease-out);
 }
 
-.tx-row__delete {
+.tx-row__icon--income {
+  background: var(--success-soft);
+  color: var(--positive);
+}
+
+.tx-row__icon--expense,
+.tx-row__icon--subscription {
+  background: var(--danger-soft);
+  color: var(--negative);
+}
+
+.tx-row--stats-only .tx-row__amount {
+  color: var(--text-3);
+  font-weight: 560;
+}
+
+/* Edit / delete appear on hover at the end of the row; the amount slides aside. */
+.tx-row__tools {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  gap: 2px;
   opacity: 0;
+  pointer-events: none;
+  translate: 0 -50%;
   transition: opacity var(--dur-fast) var(--ease-out);
 }
 
-.tx-row:hover .tx-row__delete,
-.tx-row__delete:focus-visible {
+.tx-row:hover .tx-row__tools,
+.tx-row:focus-within .tx-row__tools {
   opacity: 1;
+  pointer-events: auto;
+}
+
+.tx-row:hover .tx-row__amount,
+.tx-row:focus-within .tx-row__amount {
+  transform: translateX(calc(-1 * var(--tools-width, 0px)));
 }

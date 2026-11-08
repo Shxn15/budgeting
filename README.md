@@ -1,20 +1,46 @@
 # Budgeting
 
-Eine moderne Windows-App, um deine Finanzen im Blick zu behalten: Konten anlegen, Kontostände eintragen,
-Geld zwischen Konten verschieben und festhalten, wem du Geld schuldest oder was in den nächsten Tagen
-bezahlt werden muss. Ganz oben zeigt ein großes Kreisdiagramm, wie sich dein Geld auf die Konten verteilt.
+Eine moderne Windows-App, um deine Finanzen im Blick zu behalten: Konten anlegen, Geld hinzufügen und entfernen,
+Abos mit Profilbild verwalten, festhalten, wem du Geld schuldest oder was bald bezahlt werden muss – und sehen, wofür
+du wie viel ausgibst. Ganz oben zeigt ein großes Kreisdiagramm, wie sich dein Geld auf die Konten verteilt.
 
-## Funktionen (Version 0.1.0)
+## Funktionen (Version 0.2.0)
+
+**Neu in 0.2.0**
+
+- **Abos** (eigene Seite): Netflix, Spotify, Handyvertrag, Fitnessstudio … mit **rundem Profilbild** wie bei WhatsApp
+  (Bild aus deinen Dateien wählen, im Kreis verschieben und zoomen – auch ganz herauszoomen, damit ein Logo komplett
+  hineinpasst). Intervall wöchentlich bis alle 2 Jahre, Kosten pro Monat und Jahr, nächste Abbuchung.
+  **Automatisch abbuchen**: Am Fälligkeitstag wird der Betrag von selbst vom Konto abgezogen – auch nachträglich, wenn
+  die App ein paar Tage zu war. Ohne Automatik erscheint das Abo als fällig und du klickst „Bezahlt“ oder
+  „Überspringen“. Abos lassen sich pausieren.
+- **Konto anklicken** → eigene Kontoseite mit **Geld hinzufügen** und **Geld entfernen** (zusätzlich zum jetzigen
+  Stand), Umbuchen, Ausgaben und Einnahmen des Monats, was von diesem Konto ansteht und alle Buchungen des Kontos.
+  „Hinzufügen“ und „Entfernen“ gibt es auch direkt auf jeder Kontokarte.
+- **Vergangene Zahlungen eintragen** – mit Datum (Heute, Gestern, beliebiger Tag) und **Tag** wie „Rewe“ oder
+  „Rossmann“. Ist eine Zahlung schon im Kontostand enthalten, kann sie auch nur für die Statistik eingetragen werden.
+  Eingetragene Zahlungen lassen sich nachträglich bearbeiten.
+- **Tags mit eigenem Profilbild** (z. B. PayPal, MediaMarkt, Rewe oder eine Person): direkt im Dialog suchen,
+  aus häufig genutzten wählen oder neu erstellen – inklusive Bild. Bei anstehenden Zahlungen und in allen Listen
+  erscheint dann das runde Profilbild. Bezahlte Rechnungen übernehmen ihren Tag für die Statistik.
+- **Ausgaben** (neue Seite): wie viel du pro Tag ausgegeben hast – für einen Monat, 3, 6, 12 oder beliebig viele
+  Monate (z. B. 5), mit ‹ › durchblätterbar. Rangliste nach Tags, Säulendiagramm pro Monat (auch als Tabelle),
+  Vergleich mit dem Zeitraum davor (fair: läuft der Monat noch, wird z. B. 1.–8. Nov. mit 1.–8. Okt. verglichen).
+  Einen Tag anklicken zeigt nur ihn: Verlauf, Anteil und alle Zahlungen. Abos zählen automatisch mit.
+- **Übersicht**: „Frei verfügbar“ berücksichtigt jetzt auch die Abos der nächsten 30 Tage, dazu Abo-Kosten pro Monat
+  und Ausgaben im laufenden Monat. „Anstehende Zahlungen“ zeigt Rechnungen, Schulden und Abos gemeinsam.
+- **Buchungen** lassen sich zusätzlich nach Tag filtern; bei sehr vielen Buchungen wird schrittweise nachgeladen.
+
+**Aus 0.1.0**
 
 - **Konten** wie Bargeld, Sparkasse oder Revolut mit aktuellem Kontostand anlegen, bearbeiten und löschen
   (Kontoart und Farbe frei wählbar, die Kontoart wird aus dem Namen erraten).
 - **Großes Kreisdiagramm** über allen Konten: Anteil jedes Kontos am Guthaben. Beim Überfahren hebt es das
   Konto hervor und zeigt Betrag und Prozent – auch beim Überfahren der Kontokarten und der Legende.
-- **Kontostand ändern**: Die Differenz wird als Korrekturbuchung gespeichert, der Verlauf bleibt erhalten.
+- **Kontostand korrigieren**: Die Differenz wird als Korrekturbuchung gespeichert, der Verlauf bleibt erhalten.
 - **Umbuchen** zwischen zwei Konten, mit Vorschau der neuen Kontostände.
 - **Zahlungen & Schulden**: „Ich schulde Max 20 €“ oder „Miete in 5 Tagen“ eintragen (Datum oder „in X Tagen“),
   Hinweise auf Überfälliges, „Bezahlt“ zieht den Betrag auf Wunsch direkt vom Konto ab (rückgängig machbar).
-- **Frei verfügbar** = Vermögen minus offene Zahlungen.
 - **Buchungen**: kompletter Verlauf, filterbar nach Konto, einzelne Buchungen löschbar.
 - **Hell / Dunkel / wie Windows**, flüssige Animationen, abgerundetes modernes Design.
 
@@ -35,6 +61,10 @@ bezahlt werden muss. Ganz oben zeigt ein großes Kreisdiagramm, wie sich dein Ge
 
 Die Daten liegen **nicht** neben der .exe, sondern in deinem Benutzerprofil. Für ein Update einfach die neue
 .exe starten (die alte kann gelöscht werden) – alle Konten, Buchungen und Einträge sind sofort wieder da.
+Version 0.2.0 übernimmt die Daten von 0.1.0 automatisch (vorher wird eine Sicherung angelegt).
+
+Profilbilder werden beim Auswählen zugeschnitten, verkleinert (192 × 192 Pixel, meist nur wenige KB) und **in
+`data.json` mitgespeichert** – sie sind also in jeder Sicherung enthalten und hängen nicht von der Originaldatei ab.
 
 So bleiben die Daten über alle Versionen hinweg sicher:
 
@@ -75,12 +105,16 @@ internal/system/          Ordner öffnen, Windows-Farbschema lesen
 wails.json                App-Name und VERSION (einzige Stelle für die Versionsnummer)
 build/                    App-Icon, Windows-Manifest und Versionsinfos der .exe
 frontend/src/
-  domain/                 Datenmodell (types.ts) und reine Fachlogik: Geld, Datum, Kontostände, Operationen
+  domain/                 Datenmodell (types.ts) und reine Fachlogik: Geld, Datum, Kontostände, Operationen,
+                          Abo-Zeitplan (subscriptions.ts), Anstehendes (upcoming.ts), Statistik (spending.ts)
   persistence/            Datenformat-Version, Migrationen, Reparatur beim Laden (+ Tests)
   platform/backend.ts     Brücke zu Go (im Browser: localStorage-Ersatz zum Entwickeln)
   store/                  Zustand, Aktionen, automatisches Speichern, Theme
-  components/             UI-Bausteine (Button, Modal, Felder, Menü, Diagramm, Layout)
-  features/               Seiten und Dialoge: overview, accounts, transfers, obligations, transactions, settings
+  components/             UI-Bausteine (Button, Modal, Felder, Menü, Diagramm, Layout,
+                          avatar/: runde Profilbilder, Bildauswahl und Zuschneiden)
+  features/               Seiten und Dialoge: overview, accounts (inkl. Kontoseite), booking (Geld hinzufügen/
+                          entfernen), subscriptions (Abos), tags, spending (Ausgaben), upcoming, obligations,
+                          transactions, transfers, settings
   app/                    App-Rahmen, Seitenliste (pages.tsx), Dialog-Verwaltung (DialogHost.tsx)
 ```
 
@@ -127,8 +161,13 @@ Gespeicherte Daten müssen in jeder künftigen Version lesbar bleiben. Wenn sich
 1. `CURRENT_SCHEMA_VERSION` in `frontend/src/persistence/schema.ts` um 1 erhöhen.
 2. In `frontend/src/persistence/migrations.ts` eine Migration für die neue Version ergänzen.
 3. `domain/types.ts` und `persistence/normalize.ts` anpassen.
-4. In `persistence.test.ts` einen Test mit einer echten Datei der alten Version hinzufügen. Die vorhandene
-   Testdatei `SCHEMA_1_FILE` nie ändern.
+4. In `persistence.test.ts` einen Test mit einer echten Datei der alten Version hinzufügen. Die vorhandenen
+   Testdateien `SCHEMA_1_FILE` und `SCHEMA_2_FILE` nie ändern.
+
+| Datenformat | App-Version | Inhalt |
+| --- | --- | --- |
+| v1 | 0.1.0 | Konten, Buchungen, Zahlungen & Schulden, Einstellungen |
+| v2 | 0.2.0 | zusätzlich Tags (mit Bild), Abos; Buchungen mit Tag/Abo/„nur Statistik“, Zahlungen mit Tag |
 
 Niemals `dataDirName` in `main.go` ändern – sonst findet die App die alten Daten nicht mehr.
 

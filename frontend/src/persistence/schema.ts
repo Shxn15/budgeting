@@ -7,7 +7,7 @@ import type { AppData } from '../domain/types';
  * An app version that finds a document with a higher schema version refuses
  * to modify it, so an older .exe can never destroy data of a newer one.
  */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION: number = 2;
 
 export const DEFAULT_CURRENCY = 'EUR';
 
@@ -18,6 +18,8 @@ export function createEmptyData(appVersion: string, now: Date = new Date()): App
     accounts: [],
     transactions: [],
     obligations: [],
+    tags: [],
+    subscriptions: [],
     settings: { theme: 'system', currency: DEFAULT_CURRENCY },
     meta: { createdAt: timestamp, updatedAt: timestamp, appVersion },
   };

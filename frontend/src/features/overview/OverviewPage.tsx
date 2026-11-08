@@ -1,42 +1,62 @@
-import { ArrowLeftRight, CalendarClock, ChevronRight, HandCoins, History, Plus, Wallet } from 'lucide-react';
+import { ArrowLeftRight, CalendarClock, ChartPie, ChevronRight, History, Minus, Plus, Repeat, Wallet } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo } from 'react';
+import { formatMonthName, monthKey } from '../../domain/dates';
 import { buildPortfolio, sumBalances } from '../../domain/ledger';
 import { formatMoney } from '../../domain/money';
-import { dueLabel, obligationTitle, openObligations, sumAmounts } from '../../domain/obligations';
+import { lastMonths, previousPeriodSpending, totalSpending } from '../../domain/spending';
+import { totalMonthlyCost } from '../../domain/subscriptions';
+import { sumUpcoming } from '../../domain/upcoming';
 import { PageHeader, SectionHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { StatTile } from '../../components/ui/StatTile';
 import { AccountCard } from '../accounts/AccountCard';
-import { ObligationRow } from '../obligations/ObligationRow';
 import { sortNewestFirst } from '../transactions/describe';
 import { TransactionRow } from '../transactions/TransactionRow';
-import { useAccounts, useBalances, useCurrency, useObligations, useToday, useTransactions } from '../../store/selectors';
+import { comparisonPeriod, relativeChange } from '../spending/compare';
+import { UpcomingList } from '../upcoming/UpcomingList';
+import {
+  useAccounts,
+  useBalances,
+  useCurrency,
+  useSubscriptions,
+  useToday,
+  useTransactions,
+  useUpcoming,
+} from '../../store/selectors';
 import { useUiStore } from '../../store/uiStore';
 import { PortfolioCard } from './PortfolioCard';
 import './OverviewPage.css';
 
 const weekday = new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const percent = new Intl.NumberFormat('de-DE', { style: 'percent', maximumFractionDigits: 0 });
 
 export function OverviewPage() {
   const accounts = useAccounts();
   const balances = useBalances();
-  const obligations = useObligations();
   const transactions = useTransactions();
+  const subscriptions = useSubscriptions();
   const currency = useCurrency();
   const today = useToday();
+  const upcoming = useUpcoming(today);
   const openDialog = useUiStore((s) => s.openDialog);
   const navigate = useUiStore((s) => s.navigate);
 
   const portfolio = useMemo(() => buildPortfolio(accounts, balances), [accounts, balances]);
-  const open = useMemo(() => openObligations(obligations), [obligations]);
-  const recent = useMemo(() => sortNewestFirst(transactions).slice(0, 5), [transactions]);
+  const recent = useMemo(() => sortNewestFirst(transactions).slice(0, 6), [transactions]);
   const total = sumBalances(balances);
-  const openSum = sumAmounts(open);
-  const free = total - openSum;
-  const next = open[0] ?? null;
+  const upcomingSum = sumUpcoming(upcoming);
+  const subscriptionCharges = upcoming.filter((item) => item.type === 'subscription').length;
+  const free = total - upcomingSum;
+  const activeSubs = subscriptions.filter((s) => !s.paused);
+  const monthlySubs = totalMonthlyCost(subscriptions);
+  const month = monthKey(today);
+  const thisMonth = lastMonths(month, 1);
+  const spentThisMonth = totalSpending(transactions, thisMonth);
+  const previous = previousPeriodSpending(transactions, thisMonth, today);
+  const change = relativeChange(spentThisMonth, previous.total);
 
   return (
     <div className="page">
@@ -44,14 +64,23 @@ export function OverviewPage() {
         title="Übersicht"
         subtitle={weekday.format(new Date())}
         actions={
-          <>
-            <Button icon={<ArrowLeftRight />} onClick={() => openDialog({ type: 'transfer' })} disabled={accounts.length < 2}>
-              Umbuchen
-            </Button>
+          accounts.length > 0 ? (
+            <>
+              <Button icon={<ArrowLeftRight />} onClick={() => openDialog({ type: 'transfer' })} disabled={accounts.length < 2}>
+                Umbuchen
+              </Button>
+              <Button icon={<Plus />} onClick={() => openDialog({ type: 'booking', kind: 'income' })}>
+                Einnahme
+              </Button>
+              <Button variant="primary" icon={<Minus />} onClick={() => openDialog({ type: 'booking', kind: 'expense' })}>
+                Zahlung eintragen
+              </Button>
+            </>
+          ) : (
             <Button variant="primary" icon={<Plus />} onClick={() => openDialog({ type: 'account' })}>
               Konto hinzufügen
             </Button>
-          </>
+          )
         }
       />
 
@@ -76,28 +105,34 @@ export function OverviewPage() {
 
           <div className="stat-row overview__stats">
             <StatTile
-              label="Offene Zahlungen"
-              icon={<CalendarClock />}
-              value={formatMoney(openSum, currency)}
-              onClick={() => navigate('obligations')}
-            >
-              {open.length === 0 ? 'Nichts offen' : open.length === 1 ? '1 offener Eintrag' : `${open.length} offene Einträge`}
-            </StatTile>
-            <StatTile
               label="Frei verfügbar"
               icon={<Wallet />}
               value={formatMoney(free, currency)}
               tone={free < 0 ? 'danger' : undefined}
             >
-              Vermögen minus offene Zahlungen
+              nach anstehenden Zahlungen
+            </StatTile>
+            <StatTile label="Anstehend" icon={<CalendarClock />} value={formatMoney(upcomingSum, currency)} onClick={() => navigate('obligations')}>
+              {upcoming.length === 0
+                ? 'Nichts offen'
+                : `${upcoming.length === 1 ? '1 Zahlung' : `${upcoming.length} Zahlungen`}${
+                    subscriptionCharges > 0 ? `, davon ${subscriptionCharges} Abos` : ''
+                  }`}
+            </StatTile>
+            <StatTile label="Abos pro Monat" icon={<Repeat />} value={formatMoney(monthlySubs, currency)} onClick={() => navigate('subscriptions')}>
+              {activeSubs.length === 0 ? 'Noch keine Abos' : activeSubs.length === 1 ? '1 aktives Abo' : `${activeSubs.length} aktive Abos`}
             </StatTile>
             <StatTile
-              label="Als Nächstes fällig"
-              icon={<HandCoins />}
-              value={next ? obligationTitle(next) : '–'}
-              onClick={() => navigate('obligations')}
+              label={`Ausgaben im ${formatMonthName(month)}`}
+              icon={<ChartPie />}
+              value={formatMoney(spentThisMonth, currency)}
+              onClick={() => navigate('spending')}
             >
-              {next ? `${dueLabel(next, today)} · ${formatMoney(next.amount, currency)}` : 'Keine offenen Zahlungen'}
+              {change === null
+                ? 'nach Tags auswerten'
+                : Math.abs(change) < 0.005
+                  ? `genauso viel wie ${comparisonPeriod(previous, 1)}`
+                  : `${percent.format(Math.abs(change))} ${change > 0 ? 'mehr' : 'weniger'} als ${comparisonPeriod(previous, 1)}`}
             </StatTile>
           </div>
 
@@ -141,30 +176,26 @@ export function OverviewPage() {
                 </Button>
               }
             >
-              {open.length === 0 ? (
+              {upcoming.length === 0 ? (
                 <EmptyState
                   compact
                   icon={<CalendarClock />}
                   title="Nichts offen"
                   action={
-                    <Button size="sm" icon={<Plus />} onClick={() => openDialog({ type: 'obligation' })}>
-                      Eintragen
-                    </Button>
+                    <>
+                      <Button size="sm" icon={<Plus />} onClick={() => openDialog({ type: 'obligation' })}>
+                        Zahlung
+                      </Button>{' '}
+                      <Button size="sm" icon={<Repeat />} onClick={() => openDialog({ type: 'subscription' })}>
+                        Abo
+                      </Button>
+                    </>
                   }
                 >
-                  Schulden oder Rechnungen, die bald fällig sind, erscheinen hier.
+                  Rechnungen, Schulden und Abos, die bald fällig sind, erscheinen hier.
                 </EmptyState>
               ) : (
-                <div className="overview__list">
-                  {open.slice(0, 4).map((o) => (
-                    <ObligationRow key={o.id} obligation={o} today={today} compact />
-                  ))}
-                  {open.length > 4 && (
-                    <button type="button" className="overview__more" onClick={() => navigate('obligations')}>
-                      + {open.length - 4} weitere
-                    </button>
-                  )}
-                </div>
+                <UpcomingList items={upcoming} today={today} limit={6} onMore={() => navigate('obligations')} />
               )}
             </Card>
 
@@ -178,7 +209,7 @@ export function OverviewPage() {
             >
               {recent.length === 0 ? (
                 <EmptyState compact icon={<History />} title="Noch keine Buchungen">
-                  Umbuchungen und Änderungen am Kontostand erscheinen hier.
+                  Zahlungen, Einnahmen, Abos und Umbuchungen erscheinen hier.
                 </EmptyState>
               ) : (
                 <div className="overview__list">

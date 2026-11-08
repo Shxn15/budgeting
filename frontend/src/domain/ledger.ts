@@ -3,6 +3,7 @@ import type { Account, Cents, Transaction } from './types';
 /**
  * Balance per account id. Balances are derived from bookings:
  * money arriving (toAccountId) adds, money leaving (fromAccountId) subtracts.
+ * Bookings recorded only for the statistics (affectsBalance = false) are skipped.
  */
 export function computeBalances(
   accounts: readonly Account[],
@@ -11,6 +12,7 @@ export function computeBalances(
   const balances = new Map<string, Cents>();
   for (const account of accounts) balances.set(account.id, 0);
   for (const t of transactions) {
+    if (t.affectsBalance === false) continue;
     if (t.toAccountId !== null && balances.has(t.toAccountId)) {
       balances.set(t.toAccountId, balances.get(t.toAccountId)! + t.amount);
     }

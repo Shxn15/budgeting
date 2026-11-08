@@ -1,0 +1,99 @@
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px 10px 10px;
+  border-radius: var(--radius);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.sub-row:hover {
+  background: var(--surface-2);
+}
+
+.sub-row__open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 2px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.sub-row__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sub-row__title {
+  overflow: hidden;
+  font-size: 14.5px;
+  font-weight: 640;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 8px;
+  min-width: 0;
+  margin-top: 4px;
+}
+
+.sub-row__meta-text {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-row__price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.sub-row__amount {
+  font-size: 15px;
+  font-weight: 660;
+  letter-spacing: -0.01em;
+}
+
+.sub-row__per {
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.sub-row__monthly {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.sub-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sub-row--paused .sub-row__open .avatar {
+  filter: grayscale(0.85);
+  opacity: 0.7;
+}
+
+.sub-row--paused .sub-row__title,
+.sub-row--paused .sub-row__amount {
+  color: var(--text-2);
+}

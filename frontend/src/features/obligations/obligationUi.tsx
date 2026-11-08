@@ -8,7 +8,7 @@ export const OBLIGATION_KINDS: Record<ObligationKind, { label: string; short: st
   bill: { label: 'Anstehende Zahlung', short: 'Zahlung', icon: Receipt },
 };
 
-const DUE_TONES: Record<DueState, { tone: BadgeTone; icon: LucideIcon | null }> = {
+export const DUE_TONES: Record<DueState, { tone: BadgeTone; icon: LucideIcon | null }> = {
   overdue: { tone: 'danger', icon: TriangleAlert },
   today: { tone: 'warning', icon: Clock },
   soon: { tone: 'accent', icon: CalendarClock },

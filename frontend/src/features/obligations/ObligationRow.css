@@ -56,13 +56,16 @@
 
 .ob-row__meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 3px 8px;
   margin-top: 3px;
   min-width: 0;
 }
 
+/* In narrow columns the text moves below the badge instead of overlapping. */
 .ob-row__meta-text {
+  max-width: 100%;
   overflow: hidden;
   color: var(--text-3);
   font-size: 12.5px;
@@ -87,4 +90,39 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Tag picture instead of the icon */
+.ob-row--overdue .ob-row__avatar {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--negative);
+}
+
+.ob-row--done .ob-row__avatar {
+  filter: grayscale(0.6);
+  opacity: 0.75;
+}
+
+.ob-row__avatar-button {
+  flex: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+}
+
+.ob-row--overdue .ob-row__avatar-button .avatar {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--negative);
+}
+
+.ob-row__auto {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--accent-text);
+}
+
+.ob-row__auto svg {
+  width: 16px;
+  height: 16px;
 }

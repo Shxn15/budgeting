@@ -10,9 +10,21 @@
   white-space: nowrap;
 }
 
+.badge {
+  max-width: 100%;
+  min-width: 0;
+}
+
 .badge svg {
+  flex: none;
   width: 13px;
   height: 13px;
+}
+
+.badge__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .badge--neutral {

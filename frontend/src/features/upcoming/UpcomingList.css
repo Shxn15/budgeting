@@ -1,0 +1,42 @@
+.upcoming-list {
+  container: upcoming / inline-size;
+  display: flex;
+  flex-direction: column;
+  margin: -4px -10px -8px;
+}
+
+.upcoming-list__more {
+  align-self: flex-start;
+  margin: 4px 0 6px 12px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@container upcoming (max-width: 460px) {
+  .upcoming-list .ob-row {
+    gap: 10px;
+  }
+
+  .upcoming-list .ob-row__actions .btn {
+    width: 32px;
+    padding: 0;
+  }
+
+  .upcoming-list .ob-row__actions .btn__icon {
+    margin: 0;
+  }
+
+  /* Keep the label for screen readers, hide it visually. */
+  .upcoming-list .ob-row__actions .btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}

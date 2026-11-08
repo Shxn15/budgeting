@@ -1,0 +1,88 @@
+.cropper {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.cropper__viewport {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  /* White like the stored picture, so a zoomed-out logo looks exactly as saved. */
+  background: #ffffff;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  touch-action: none;
+}
+
+.cropper__viewport:active {
+  cursor: grabbing;
+}
+
+.cropper__viewport:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.cropper__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Darkens everything outside the circle. */
+.cropper__mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.9),
+    0 0 0 999px rgba(9, 11, 16, 0.58);
+  pointer-events: none;
+}
+
+.cropper__side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cropper__title {
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.cropper__hint {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.cropper__zoom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cropper__zoom input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.cropper__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}

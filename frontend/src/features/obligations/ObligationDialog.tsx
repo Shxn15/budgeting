@@ -12,6 +12,7 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { addObligation, updateObligation } from '../../store/actions';
 import { useDataStore } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
+import { TagPicker } from '../tags/TagPicker';
 import { OBLIGATION_KINDS } from './obligationUi';
 import '../../components/ui/Form.css';
 import './ObligationDialog.css';
@@ -52,6 +53,7 @@ export function ObligationDialog({ obligationId, kind: initialKind, onClose }: P
   const [dueDate, setDueDate] = useState<ISODate>(existing?.dueDate ?? addDays(today, 7));
   const [daysText, setDaysText] = useState(() => String(diffDays(today, existing?.dueDate ?? addDays(today, 7))));
   const [accountId, setAccountId] = useState(existing?.accountId ?? '');
+  const [tagId, setTagId] = useState<string | null>(existing?.tagId ?? null);
   const [note, setNote] = useState(existing?.note ?? '');
   const [errors, setErrors] = useState<Errors>({});
 
@@ -93,6 +95,7 @@ export function ObligationDialog({ obligationId, kind: initialKind, onClose }: P
       amount: amount!,
       dueDate: hasDue ? dueDate : null,
       accountId: accountId || null,
+      tagId,
       note,
     };
     try {
@@ -176,6 +179,14 @@ export function ObligationDialog({ obligationId, kind: initialKind, onClose }: P
 
       {isDebt ? whoField : whatField}
       {isDebt ? whatField : whoField}
+
+      <Field
+        label="Tag (optional)"
+        htmlFor="obligation-tag"
+        hint={isDebt ? 'z. B. die Person mit ihrem Profilbild.' : 'z. B. PayPal oder MediaMarkt – das Profilbild erscheint dann in der Liste.'}
+      >
+        <TagPicker id="obligation-tag" value={tagId} onChange={setTagId} />
+      </Field>
 
       <Field label="Betrag" htmlFor="obligation-amount" error={errors.amount}>
         <MoneyInput

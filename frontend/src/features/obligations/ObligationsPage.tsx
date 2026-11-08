@@ -1,4 +1,4 @@
-import { CalendarCheck, HandCoins, Plus, Receipt } from 'lucide-react';
+import { CalendarCheck, ChevronRight, HandCoins, Plus, Receipt } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { formatMoney } from '../../domain/money';
@@ -9,8 +9,10 @@ import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { StatTile } from '../../components/ui/StatTile';
-import { useCurrency, useObligations, useToday } from '../../store/selectors';
+import { useCurrency, useObligations, useToday, useUpcoming } from '../../store/selectors';
 import { useUiStore } from '../../store/uiStore';
+import { UPCOMING_DAYS } from '../../domain/upcoming';
+import { UpcomingList } from '../upcoming/UpcomingList';
 import { ObligationRow } from './ObligationRow';
 import './ObligationsPage.css';
 
@@ -21,7 +23,10 @@ export function ObligationsPage() {
   const today = useToday();
   const currency = useCurrency();
   const openDialog = useUiStore((s) => s.openDialog);
+  const navigate = useUiStore((s) => s.navigate);
   const [filter, setFilter] = useState<Filter>('open');
+  const upcoming = useUpcoming(today);
+  const subscriptionCharges = useMemo(() => upcoming.filter((item) => item.type === 'subscription'), [upcoming]);
 
   const open = useMemo(() => openObligations(obligations), [obligations]);
   const done = useMemo(
@@ -123,6 +128,20 @@ export function ObligationsPage() {
           </div>
         )}
       </Card>
+
+      {subscriptionCharges.length > 0 && (
+        <Card
+          className="ob-subscriptions"
+          title={`Abos in den nächsten ${UPCOMING_DAYS} Tagen`}
+          actions={
+            <Button size="sm" variant="ghost" onClick={() => navigate('subscriptions')}>
+              Alle Abos <ChevronRight />
+            </Button>
+          }
+        >
+          <UpcomingList items={subscriptionCharges} today={today} />
+        </Card>
+      )}
     </div>
   );
 }

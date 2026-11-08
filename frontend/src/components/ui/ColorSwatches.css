@@ -33,3 +33,21 @@
   height: 16px;
   stroke-width: 3;
 }
+
+.swatches--sm {
+  gap: 7px;
+}
+
+.swatches--sm .swatch {
+  width: 22px;
+  height: 22px;
+}
+
+.swatches--sm .swatch.is-active {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--swatch);
+}
+
+.swatches--sm .swatch svg {
+  width: 12px;
+  height: 12px;
+}

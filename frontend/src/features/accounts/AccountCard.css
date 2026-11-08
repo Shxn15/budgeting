@@ -13,6 +13,41 @@
     translate var(--dur) var(--ease-out);
 }
 
+/* Stretched button: a click anywhere on the card opens the account. */
+.account-card__open {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  cursor: pointer;
+}
+
+.account-card__open:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.account-card__header,
+.account-card__balance,
+.account-card__share,
+.account-card__actions {
+  pointer-events: none;
+}
+
+.account-card__header,
+.account-card__actions {
+  position: relative;
+  z-index: 1;
+}
+
+.account-card__menu,
+.account-card__actions .btn {
+  pointer-events: auto;
+}
+
 .account-card:hover,
 .account-card.is-highlighted {
   border-color: color-mix(in srgb, var(--account-color) 45%, var(--border));
@@ -97,4 +132,8 @@
 
 .account-card__actions .btn {
   flex: 1;
+}
+
+.account-card__actions .account-card__transfer {
+  flex: none;
 }
