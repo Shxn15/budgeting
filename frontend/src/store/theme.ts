@@ -32,8 +32,12 @@ export function useThemeSync(): ResolvedTheme {
   const resolved = resolve(preference, systemDark);
 
   useEffect(() => {
+    // Until the data is loaded, keep the theme index.html picked from the
+    // cached setting – otherwise a user who chose a theme different from
+    // Windows would see a short flash of the wrong one at startup.
+    if (!ready) return;
     document.documentElement.dataset.theme = resolved;
-  }, [resolved]);
+  }, [resolved, ready]);
 
   useEffect(() => {
     if (!ready) return;
