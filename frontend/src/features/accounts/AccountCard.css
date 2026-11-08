@@ -1,0 +1,100 @@
+.account-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 18px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out),
+    translate var(--dur) var(--ease-out);
+}
+
+.account-card:hover,
+.account-card.is-highlighted {
+  border-color: color-mix(in srgb, var(--account-color) 45%, var(--border));
+  box-shadow: var(--shadow);
+  translate: 0 -2px;
+}
+
+.account-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-card__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.account-card__name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card__type {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.account-card__balance {
+  margin-top: 18px;
+  font-size: 26px;
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.account-card__share {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.account-card__bar {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  background: var(--chart-track);
+  border-radius: var(--radius-full);
+}
+
+.account-card__bar span {
+  display: block;
+  height: 100%;
+  background: var(--account-color);
+  border-radius: var(--radius-full);
+  transition:
+    width 600ms var(--ease-out),
+    background-color var(--dur-slow) var(--ease-out);
+}
+
+.account-card__percent {
+  min-width: 52px;
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 560;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.account-card__actions {
+  display: flex;
+  gap: 2px;
+  margin: 14px -8px 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.account-card__actions .btn {
+  flex: 1;
+}

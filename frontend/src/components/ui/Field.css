@@ -1,0 +1,165 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.field__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 18px;
+}
+
+.field__label {
+  font-size: 13px;
+  font-weight: 560;
+  color: var(--text-2);
+}
+
+.field__hint,
+.field__error {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.field__hint {
+  color: var(--text-3);
+}
+
+.field__error {
+  color: var(--negative);
+  font-weight: 500;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 42px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.input:hover {
+  border-color: var(--border-strong);
+}
+
+.input:focus-within {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.input--invalid,
+.input--invalid:hover {
+  border-color: var(--negative);
+}
+
+.input--invalid:focus-within {
+  box-shadow: 0 0 0 4px var(--danger-soft);
+}
+
+.input__control {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 14px;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 14px;
+}
+
+.input__control::placeholder {
+  color: var(--text-3);
+}
+
+.input__control:focus-visible {
+  outline: none;
+}
+
+.input__leading {
+  padding-left: 14px;
+  margin-right: -8px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.input--disabled {
+  opacity: 0.5;
+}
+
+.input__suffix {
+  padding-right: 14px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.input--lg {
+  height: 52px;
+}
+
+.input--lg .input__control {
+  font-size: 22px;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.input--lg .input__suffix {
+  font-size: 18px;
+}
+
+.input--select .input__control {
+  appearance: none;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+.input--select .input__control option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.input__chevron {
+  position: absolute;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+.input--textarea {
+  height: auto;
+}
+
+.input--textarea .input__control {
+  padding: 10px 14px;
+  resize: none;
+  line-height: 1.45;
+}
+
+/* Native date picker icon in the theme colour */
+.input__control::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+:root[data-theme='dark'] .input__control::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}

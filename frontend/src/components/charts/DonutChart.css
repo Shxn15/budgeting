@@ -1,0 +1,43 @@
+.donut {
+  position: relative;
+  flex: none;
+}
+
+.donut__svg {
+  display: block;
+  overflow: visible;
+}
+
+.donut__track {
+  fill: none;
+  stroke: var(--chart-track);
+  transition: stroke var(--dur-slow) var(--ease-out);
+}
+
+.donut__slice {
+  transform-box: view-box;
+  transform-origin: center;
+  transition:
+    transform 260ms var(--ease-out),
+    opacity 220ms var(--ease-out),
+    fill var(--dur-slow) var(--ease-out);
+  cursor: pointer;
+}
+
+.donut__svg.has-active .donut__slice {
+  opacity: 0.32;
+}
+
+.donut__svg.has-active .donut__slice.is-active {
+  opacity: 1;
+  transform: scale(1.045);
+}
+
+.donut__center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  text-align: center;
+}

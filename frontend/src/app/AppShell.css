@@ -1,0 +1,21 @@
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  height: 100%;
+}
+
+.shell__main {
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.shell__page {
+  container: page / inline-size;
+}
+
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 32px 40px 64px;
+}

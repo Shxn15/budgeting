@@ -1,0 +1,25 @@
+.account-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  background: color-mix(in srgb, var(--account-color) 15%, transparent);
+  color: var(--account-color);
+  border-radius: 30%;
+  transition:
+    background-color var(--dur-slow) var(--ease-out),
+    color var(--dur-slow) var(--ease-out);
+}
+
+.account-icon svg {
+  width: 50%;
+  height: 50%;
+}
+
+.account-dot {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--account-color);
+}

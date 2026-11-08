@@ -1,0 +1,79 @@
+.tx-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.tx-row:hover {
+  background: var(--surface-2);
+}
+
+.tx-row--compact {
+  padding: 9px 10px;
+}
+
+.tx-row__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  border-radius: 30%;
+}
+
+.tx-row__icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.tx-row__icon--transfer {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.tx-row__icon--payment {
+  background: var(--danger-soft);
+  color: var(--negative);
+}
+
+.tx-row__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.tx-row__title {
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-row__detail {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-row__amount {
+  font-size: 14px;
+  font-weight: 640;
+  white-space: nowrap;
+}
+
+.tx-row__delete {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.tx-row:hover .tx-row__delete,
+.tx-row__delete:focus-visible {
+  opacity: 1;
+}

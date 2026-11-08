@@ -1,0 +1,35 @@
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.swatch {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: var(--swatch);
+  border: 0;
+  border-radius: var(--radius-full);
+  color: #ffffff;
+  box-shadow: 0 0 0 0 var(--surface), 0 0 0 0 var(--swatch);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
+}
+
+.swatch:hover {
+  transform: scale(1.08);
+}
+
+.swatch.is-active {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--swatch);
+}
+
+.swatch svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
+}

@@ -1,0 +1,85 @@
+.page.page--narrow {
+  max-width: 860px;
+}
+
+.page--narrow .card + .card {
+  margin-top: 16px;
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 0;
+}
+
+.setting + .setting {
+  border-top: 1px solid var(--border);
+}
+
+.setting__text {
+  min-width: 0;
+}
+
+.setting__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.setting__hint {
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.setting__path {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-safety {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding: 14px 16px;
+  background: var(--success-soft);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+
+.data-safety svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--success);
+}
+
+.about {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.about div {
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.about dt {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.about dd {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 650;
+}

@@ -1,0 +1,54 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 44px 24px;
+  text-align: center;
+}
+
+.empty--compact {
+  padding: 28px 16px;
+}
+
+.empty__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 14px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-radius: var(--radius);
+}
+
+.empty--compact .empty__icon {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 10px;
+}
+
+.empty__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.empty--compact .empty__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.empty__title {
+  font-size: 15px;
+  font-weight: 620;
+}
+
+.empty__text {
+  max-width: 340px;
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+
+.empty__action {
+  margin-top: 18px;
+}

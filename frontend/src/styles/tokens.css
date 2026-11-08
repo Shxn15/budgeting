@@ -1,0 +1,137 @@
+/*
+ * Design tokens. Components only use these variables, so the whole look
+ * (and dark mode) is controlled from this one file.
+ * --bg must match the window background colours in main.go.
+ */
+:root {
+  color-scheme: light;
+
+  --font-sans: 'Inter Variable', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+
+  /* Surfaces */
+  --bg: #f3f4f8;
+  --surface: #ffffff;
+  --surface-2: #f6f7fa;
+  --surface-3: #eceef3;
+  --surface-hover: #f1f2f6;
+  --overlay: rgba(15, 20, 32, 0.38);
+
+  /* Lines */
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.15);
+  --ring: rgba(79, 70, 229, 0.45);
+
+  /* Text */
+  --text: #0f1729;
+  --text-2: #4a5468;
+  --text-3: #737c8f;
+  --text-on-accent: #ffffff;
+
+  /* Accent (buttons, selection, links) */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-text: #4338ca;
+  --accent-soft: rgba(79, 70, 229, 0.1);
+  --accent-soft-2: rgba(79, 70, 229, 0.16);
+
+  /* Meaning (always shown together with an icon or a label) */
+  --positive: #127a3a;
+  --negative: #c42b2b;
+  --danger: #d03b3b;
+  --danger-hover: #b92f2f;
+  --danger-soft: rgba(208, 59, 59, 0.1);
+  --warning: #9a5b00;
+  --warning-soft: rgba(250, 178, 25, 0.18);
+  --success: #127a3a;
+  --success-soft: rgba(12, 163, 12, 0.12);
+
+  /* Chart series (validated palette, see domain/colors.ts) */
+  --series-blue: #2a78d6;
+  --series-orange: #eb6834;
+  --series-aqua: #1baf7a;
+  --series-yellow: #eda100;
+  --series-magenta: #e87ba4;
+  --series-green: #008300;
+  --series-violet: #6250d6;
+  --series-red: #e34948;
+  --series-other: #a3a8b4;
+  --chart-track: #eceef3;
+
+  /* Shape */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --radius-full: 999px;
+
+  /* Depth */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 6px -2px rgba(16, 24, 40, 0.06);
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px -10px rgba(16, 24, 40, 0.12);
+  --shadow-lg: 0 2px 6px rgba(16, 24, 40, 0.06), 0 28px 64px -16px rgba(16, 24, 40, 0.28);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 360ms;
+
+  /* Layout */
+  --sidebar-width: 262px;
+  --page-max: 1160px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0d1016;
+  --surface: #161a22;
+  --surface-2: #1b2029;
+  --surface-3: #242a35;
+  --surface-hover: #1f2430;
+  --overlay: rgba(3, 5, 10, 0.62);
+
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --ring: rgba(139, 140, 248, 0.6);
+
+  --text: #edf0f5;
+  --text-2: #a9b1bf;
+  --text-3: #7b8494;
+  --text-on-accent: #ffffff;
+
+  --accent: #5b5ff0;
+  --accent-hover: #6b6ff4;
+  --accent-text: #a5a8fb;
+  --accent-soft: rgba(124, 127, 246, 0.14);
+  --accent-soft-2: rgba(124, 127, 246, 0.22);
+
+  --positive: #3fcf72;
+  --negative: #ff7a7a;
+  --danger: #e04848;
+  --danger-hover: #ea5a5a;
+  --danger-soft: rgba(230, 103, 103, 0.14);
+  --warning: #f2b544;
+  --warning-soft: rgba(250, 178, 25, 0.14);
+  --success: #3fcf72;
+  --success-soft: rgba(12, 163, 12, 0.18);
+
+  --series-blue: #3987e5;
+  --series-orange: #d95926;
+  --series-aqua: #199e70;
+  --series-yellow: #c98500;
+  --series-magenta: #d55181;
+  --series-green: #008300;
+  --series-violet: #9085e9;
+  --series-red: #e66767;
+  --series-other: #5d6472;
+  --chart-track: #242a35;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px -2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.4), 0 32px 72px -16px rgba(0, 0, 0, 0.7);
+}
