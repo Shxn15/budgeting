@@ -14,6 +14,11 @@ Wails v2 (Go) shell + React 19 / TypeScript / Vite frontend. See README.md (Germ
 - Account colours are palette keys (`domain/colors.ts`, CSS vars `--series-*`); keep the palette order.
 - Styling: CSS variables from `styles/tokens.css` only (light + dark), co-located `.css` per component.
 
+## Delivering builds (user's explicit wish)
+
+After every change, build the exe (`./scripts/build-windows.sh`) and send it to the user in the chat
+with SendUserFile: the `.exe` itself plus a `.zip` of it (some browsers/Windows block raw .exe downloads).
+
 ## Data compatibility is sacred
 
 The user's data must survive every update.

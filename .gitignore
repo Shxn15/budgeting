@@ -1,6 +1,7 @@
 # Build output
 build/bin/
 *.syso
+*.zip
 
 # Frontend
 frontend/node_modules/
