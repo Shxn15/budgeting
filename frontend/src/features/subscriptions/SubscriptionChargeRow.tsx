@@ -1,15 +1,25 @@
-import { Check, Zap } from 'lucide-react';
+import { Check, Pencil, Zap } from 'lucide-react';
 import { formatMoney } from '../../domain/money';
 import type { ISODate, Subscription } from '../../domain/types';
 import { Button } from '../../components/ui/Button';
 import { cx } from '../../components/ui/cx';
+import { Menu } from '../../components/ui/Menu';
 import { useAccountMap, useCurrency } from '../../store/selectors';
 import { useUiStore } from '../../store/uiStore';
+import { subscriptionMenu } from './SubscriptionRow';
 import { ChargeBadge, SubscriptionAvatar } from './subscriptionUi';
 import '../obligations/ObligationRow.css';
 
-/** One upcoming charge of a subscription (overview and account page). */
-export function SubscriptionChargeRow({ subscription: sub, date, today }: { subscription: Subscription; date: ISODate; today: ISODate }) {
+interface Props {
+  subscription: Subscription;
+  date: ISODate;
+  today: ISODate;
+  /** With the "⋯" menu (Zahlungen page). */
+  full?: boolean;
+}
+
+/** One upcoming charge of a subscription (overview, Zahlungen page and account page). */
+export function SubscriptionChargeRow({ subscription: sub, date, today, full }: Props) {
   const openDialog = useUiStore((s) => s.openDialog);
   const accounts = useAccountMap();
   const currency = useCurrency();
@@ -47,6 +57,16 @@ export function SubscriptionChargeRow({ subscription: sub, date, today }: { subs
               Bezahlt
             </Button>
           )
+        )}
+        {full && (
+          <Menu
+            label={`Aktionen für ${sub.name}`}
+            items={
+              isCurrent
+                ? subscriptionMenu(sub)
+                : [{ label: 'Abo bearbeiten', icon: <Pencil />, onSelect: () => openDialog({ type: 'subscription', subscriptionId: sub.id }) }]
+            }
+          />
         )}
       </div>
     </div>

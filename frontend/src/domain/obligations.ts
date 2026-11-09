@@ -1,4 +1,4 @@
-import { diffDays, formatDate, relativeDays } from './dates';
+import { diffDays, formatDateCompact, relativeDays } from './dates';
 import type { Cents, ISODate, Obligation } from './types';
 
 /** Obligations due within this many days count as "due soon". */
@@ -37,7 +37,7 @@ export function dueLabelForDate(date: ISODate | null, today: ISODate): string {
   if (days === -1) return 'seit gestern überfällig';
   if (days < 0) return `seit ${-days} Tagen überfällig`;
   if (days <= 31) return `fällig ${relativeDays(days)}`;
-  return `fällig am ${formatDate(date)}`;
+  return `fällig am ${formatDateCompact(date, today)}`;
 }
 
 export function dueLabel(o: Obligation, today: ISODate): string {
@@ -50,7 +50,7 @@ export function chargeLabel(date: ISODate, today: ISODate): string {
   if (days <= 0) return 'wird heute abgebucht';
   if (days === 1) return 'wird morgen abgebucht';
   if (days <= 31) return `Abbuchung ${relativeDays(days)}`;
-  return `Abbuchung am ${formatDate(date)}`;
+  return `Abbuchung am ${formatDateCompact(date, today)}`;
 }
 
 /** Headline of an obligation, e.g. "Miete" or "Schulden bei Max". */

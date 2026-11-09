@@ -1,12 +1,13 @@
-import { ArrowLeft, ArrowLeftRight, CalendarClock, History, Minus, Plus, Repeat, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowLeftRight, CalendarClock, History, Minus, Plus, Repeat, Target, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { useMemo, type CSSProperties } from 'react';
 import { accountColorCss } from '../../domain/colors';
 import { formatMonthName, monthKey } from '../../domain/dates';
 import { buildPortfolio } from '../../domain/ledger';
 import { formatMoney } from '../../domain/money';
 import { accountFlows, lastMonths } from '../../domain/spending';
+import { allocatedOnAccount, goalsOfAccount, isSavingsAccount } from '../../domain/savings';
 import { totalMonthlyCost } from '../../domain/subscriptions';
-import { sumUpcoming, upcomingForAccount } from '../../domain/upcoming';
+import { planCount, planForAccount } from '../../domain/upcoming';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { cx } from '../../components/ui/cx';
@@ -17,14 +18,16 @@ import {
   useAccounts,
   useBalances,
   useCurrency,
+  useSavingsGoals,
   useSubscriptions,
   useToday,
   useTransactions,
-  useUpcoming,
+  useUpcomingPlan,
 } from '../../store/selectors';
 import { useUiStore } from '../../store/uiStore';
+import { SavingsGoalsCard } from '../savings/SavingsGoalsCard';
 import { TransactionGroups } from '../transactions/TransactionGroups';
-import { UpcomingList } from '../upcoming/UpcomingList';
+import { UpcomingPlanList } from '../upcoming/UpcomingList';
 import { AccountIcon } from './AccountIcon';
 import { accountMenu } from './accountMenu';
 import { accountTypeInfo } from './accountTypes';
@@ -41,9 +44,10 @@ export function AccountPage() {
   const balances = useBalances();
   const transactions = useTransactions();
   const subscriptions = useSubscriptions();
+  const goals = useSavingsGoals();
   const currency = useCurrency();
   const today = useToday();
-  const upcoming = useUpcoming(today);
+  const fullPlan = useUpcomingPlan(today);
   const account = accounts.find((a) => a.id === accountId) ?? null;
 
   const history = useMemo(
@@ -82,11 +86,15 @@ export function AccountPage() {
   const month = monthKey(today);
   const monthName = formatMonthName(month);
   const flows = accountFlows(transactions, account.id, lastMonths(month, 1));
-  const mine = upcomingForAccount(upcoming, account.id);
-  const upcomingSum = sumUpcoming(mine);
+  const plan = planForAccount(fullPlan, account.id);
+  const dueNow = plan.current;
   const accountSubs = subscriptions.filter((s) => s.accountId === account.id && !s.paused);
   const typeInfo = accountTypeInfo(account.type);
-  const afterUpcoming = balance - upcomingSum;
+  const afterUpcoming = balance - dueNow.total;
+  const accountGoals = goalsOfAccount(goals, account.id);
+  const showGoals = isSavingsAccount(account) || accountGoals.length > 0;
+  const allocated = allocatedOnAccount(goals, account.id);
+  const topGoals = accountGoals.filter((g) => g.parentId === null).length;
 
   return (
     <div className="page">
@@ -109,9 +117,9 @@ export function AccountPage() {
           <div>
             <p className="account-hero__label">Kontostand</p>
             <p className={cx('account-hero__balance', balance < 0 && 'amount-negative')}>{formatMoney(balance, currency)}</p>
-            {upcomingSum > 0 && (
+            {dueNow.total > 0 && (
               <p className="account-hero__after">
-                nach anstehenden Zahlungen:{' '}
+                nach den Zahlungen im {monthName}:{' '}
                 <strong className={cx(afterUpcoming < 0 && 'amount-negative')}>{formatMoney(afterUpcoming, currency)}</strong>
               </p>
             )}
@@ -137,18 +145,32 @@ export function AccountPage() {
         <StatTile label={`Einnahmen im ${monthName}`} icon={<TrendingUp />} value={formatMoney(flows.received, currency)}>
           hinzugefügtes Geld
         </StatTile>
-        <StatTile label="Anstehend" icon={<CalendarClock />} value={formatMoney(upcomingSum, currency)}>
-          {mine.length === 0 ? 'nichts in den nächsten 30 Tagen' : mine.length === 1 ? '1 Zahlung' : `${mine.length} Zahlungen`}
+        <StatTile label={`Anstehend im ${monthName}`} icon={<CalendarClock />} value={formatMoney(dueNow.total, currency)}>
+          {dueNow.items.length === 0
+            ? `im ${monthName} nichts mehr`
+            : dueNow.items.length === 1
+              ? '1 Zahlung'
+              : `${dueNow.items.length} Zahlungen`}
         </StatTile>
-        <StatTile
-          label="Abos auf diesem Konto"
-          icon={<Repeat />}
-          value={formatMoney(totalMonthlyCost(accountSubs), currency)}
-          onClick={() => navigate('subscriptions')}
-        >
-          {accountSubs.length === 1 ? '1 Abo · pro Monat' : `${accountSubs.length} Abos · pro Monat`}
-        </StatTile>
+        {showGoals ? (
+          <StatTile label="Für Sparziele" icon={<Target />} value={formatMoney(allocated, currency)}>
+            {topGoals === 0
+              ? 'noch keine Sparziele'
+              : `${topGoals === 1 ? '1 Ziel' : `${topGoals} Ziele`} · ${formatMoney(balance - allocated, currency)} frei`}
+          </StatTile>
+        ) : (
+          <StatTile
+            label="Abos auf diesem Konto"
+            icon={<Repeat />}
+            value={formatMoney(totalMonthlyCost(accountSubs), currency)}
+            onClick={() => navigate('subscriptions')}
+          >
+            {accountSubs.length === 1 ? '1 Abo · pro Monat' : `${accountSubs.length} Abos · pro Monat`}
+          </StatTile>
+        )}
       </div>
+
+      {showGoals && <SavingsGoalsCard account={account} balance={balance} today={today} />}
 
       <div className="account-page__columns">
         <Card
@@ -171,12 +193,12 @@ export function AccountPage() {
         </Card>
 
         <Card title="Anstehend von diesem Konto">
-          {mine.length === 0 ? (
+          {planCount(plan) === 0 ? (
             <EmptyState compact icon={<CalendarClock />} title="Nichts geplant">
               Zahlungen und Abos, die du diesem Konto zuordnest, erscheinen hier.
             </EmptyState>
           ) : (
-            <UpcomingList items={mine} today={today} limit={8} onMore={() => navigate('obligations')} />
+            <UpcomingPlanList plan={plan} today={today} limit={8} />
           )}
         </Card>
       </div>

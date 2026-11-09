@@ -7,8 +7,8 @@ export type Migration = (doc: RawDocument) => RawDocument;
  * MIGRATIONS[n] upgrades a document from schema version n-1 to version n.
  *
  * How to change the stored data model:
- *  1. Increase CURRENT_SCHEMA_VERSION in schema.ts (e.g. to 2).
- *  2. Add MIGRATIONS[2] here that turns a version-1 document into version 2.
+ *  1. Increase CURRENT_SCHEMA_VERSION in schema.ts (e.g. to 4).
+ *  2. Add MIGRATIONS[4] here that turns a version-3 document into version 4.
  *  3. Update domain/types.ts and normalize.ts.
  *  4. Add a test with a real document of the old version to persistence.test.ts.
  *
@@ -34,6 +34,20 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
       : doc.obligations,
     tags: Array.isArray(doc.tags) ? doc.tags : [],
     subscriptions: Array.isArray(doc.subscriptions) ? doc.subscriptions : [],
+  }),
+
+  /**
+   * Version 0.3.0: money others owe me (receivables), savings goals and
+   * colour themes. New lists `receivables` and `savingsGoals`; the settings
+   * get `colorTheme` and `collapsedSections`. Nothing existing changes.
+   */
+  3: (doc) => ({
+    ...doc,
+    receivables: Array.isArray(doc.receivables) ? doc.receivables : [],
+    savingsGoals: Array.isArray(doc.savingsGoals) ? doc.savingsGoals : [],
+    settings: isRawDocument(doc.settings)
+      ? { colorTheme: 'standard', collapsedSections: [], ...doc.settings }
+      : doc.settings,
   }),
 };
 

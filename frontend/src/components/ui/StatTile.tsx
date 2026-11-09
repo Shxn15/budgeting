@@ -9,10 +9,12 @@ interface StatTileProps {
   tone?: 'danger' | 'positive';
   icon?: ReactNode;
   onClick?(): void;
+  /** Tooltip with more details. */
+  title?: string;
 }
 
 /** Small card with one key figure (label · value · note). */
-export function StatTile({ label, value, children, tone, icon, onClick }: StatTileProps) {
+export function StatTile({ label, value, children, tone, icon, onClick, title }: StatTileProps) {
   const content = (
     <>
       <span className="stat-tile__label">
@@ -26,10 +28,12 @@ export function StatTile({ label, value, children, tone, icon, onClick }: StatTi
     </>
   );
   return onClick ? (
-    <button type="button" className="stat-tile stat-tile--button" onClick={onClick}>
+    <button type="button" className="stat-tile stat-tile--button" onClick={onClick} title={title}>
       {content}
     </button>
   ) : (
-    <div className="stat-tile">{content}</div>
+    <div className="stat-tile" title={title}>
+      {content}
+    </div>
   );
 }

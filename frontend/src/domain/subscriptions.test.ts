@@ -6,6 +6,7 @@ import {
   nextOccurrenceAfter,
   nextOccurrenceOnOrAfter,
   occurrence,
+  remainingThisMonth,
   totalMonthlyCost,
   yearlyCost,
   type Schedule,
@@ -99,5 +100,22 @@ describe('subscription schedule', () => {
     expect(intervalLabel('week', 1)).toBe('wöchentlich');
     expect(intervalLabel('week', 2)).toBe('alle 2 Wochen');
     expect(intervalLabel('year', 1)).toBe('jährlich');
+  });
+});
+
+describe('what is still charged this month', () => {
+  it('counts the open charges until the end of the month', () => {
+    const list = [
+      sub({ id: 'a', amount: 1299, nextDueDate: '2026-11-15', anchorDate: '2026-11-15' }),
+      // Already charged this month: next charge in December.
+      sub({ id: 'b', amount: 999, nextDueDate: '2026-12-02', anchorDate: '2026-11-02' }),
+      // Weekly: 13th, 20th and 27th.
+      sub({ id: 'c', amount: 500, intervalUnit: 'week', nextDueDate: '2026-11-13', anchorDate: '2026-11-13' }),
+      // Overdue manual charge still counts.
+      sub({ id: 'd', amount: 2990, nextDueDate: '2026-11-01', anchorDate: '2026-11-01' }),
+      sub({ id: 'e', amount: 4999, nextDueDate: '2026-11-20', anchorDate: '2026-11-20', paused: true }),
+    ];
+    expect(remainingThisMonth(list, '2026-11-09')).toEqual({ count: 1 + 3 + 1, total: 1299 + 3 * 500 + 2990 });
+    expect(remainingThisMonth([], '2026-11-09')).toEqual({ count: 0, total: 0 });
   });
 });

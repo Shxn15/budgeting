@@ -5,9 +5,18 @@ import { dueLabel, dueState, openObligations, sumAmounts } from './obligations';
 import {
   addBooking,
   addObligation,
+  addReceivable,
+  addSavingsGoal,
   addSubscription,
   addTag,
+  allocateToSavingsGoal,
   createAccount,
+  deleteReceivable,
+  deleteSavingsGoal,
+  markReceivableReceived,
+  reopenReceivable,
+  updateReceivable,
+  updateSavingsGoal,
   deleteAccount,
   deleteObligation,
   deleteSubscription,
@@ -29,9 +38,12 @@ import {
   updateSubscription,
   updateTag,
   type BookingInput,
+  type NewSavingsGoalInput,
   type ObligationInput,
+  type ReceivableInput,
   type SubscriptionInput,
 } from './operations';
+import { buildGoalTree, unassignedOnAccount } from './savings';
 import { emptyData, testEnv } from './testing';
 import type { AppData } from './types';
 
@@ -193,6 +205,9 @@ describe('obligations', () => {
       'fällig in 5 Tagen',
       'ohne Fälligkeit',
     ]);
+    // Far away: the date, with the year only if it is not the current one.
+    expect(dueLabel({ ...open[0]!, dueDate: '2026-12-15' }, today)).toBe('fällig am 15. Dez.');
+    expect(dueLabel({ ...open[0]!, dueDate: '2027-01-20' }, today)).toBe('fällig am 20. Jan. 2027');
   });
 
   it('requires a title or a person', () => {
@@ -490,5 +505,188 @@ describe('subscriptions', () => {
 
     next = deleteAccount(next, cash.id);
     expect(next.subscriptions[0]).toMatchObject({ accountId: null, autoPay: false });
+  });
+});
+
+describe('receivables (money others owe me)', () => {
+  const pizza: ReceivableInput = {
+    counterparty: 'Max',
+    title: 'Pizza',
+    amount: 1500,
+    expectedDate: null,
+    accountId: null,
+    tagId: null,
+    note: '',
+  };
+
+  it('records money someone owes me, with or without a date', () => {
+    const { data, env, bank } = sample();
+    let next = addReceivable(data, pizza, env);
+    next = addReceivable(next, { ...pizza, counterparty: '  Lisa ', title: '', expectedDate: '2026-11-20', accountId: bank.id }, env);
+    expect(next.receivables.map((r) => [r.counterparty, r.title, r.expectedDate, r.receivedAt])).toEqual([
+      ['Max', 'Pizza', null, null],
+      ['Lisa', '', '2026-11-20', null],
+    ]);
+    // Nothing changes on the accounts until the money arrives.
+    expect(balances(next)).toEqual(balances(data));
+  });
+
+  it('validates the input', () => {
+    const { data, env } = sample();
+    expect(() => addReceivable(data, { ...pizza, counterparty: ' ', title: '' }, env)).toThrow('wer dir das Geld schuldet');
+    expect(() => addReceivable(data, { ...pizza, amount: 0 }, env)).toThrow(DomainError);
+    expect(() => addReceivable(data, { ...pizza, expectedDate: '2026-02-30' }, env)).toThrow(DomainError);
+    expect(() => addReceivable(data, { ...pizza, accountId: 'nope' }, env)).toThrow(DomainError);
+  });
+
+  it('books the money as income when it arrives and can be undone', () => {
+    const { data, env, cash } = sample();
+    let next = addReceivable(data, pizza, env);
+    const id = next.receivables[0]!.id;
+    next = markReceivableReceived(next, id, { accountId: cash.id, date: '2026-11-08' }, env);
+    expect(balances(next).Bargeld).toBe(20000 + 1500);
+    const receipt = next.transactions.at(-1)!;
+    expect(receipt).toMatchObject({ kind: 'income', amount: 1500, toAccountId: cash.id, note: 'Pizza von Max' });
+    expect(next.receivables[0]).toMatchObject({ receiptTransactionId: receipt.id });
+    expect(next.receivables[0]!.receivedAt).not.toBeNull();
+    expect(() => markReceivableReceived(next, id, { accountId: cash.id, date: '2026-11-08' }, env)).toThrow(DomainError);
+
+    const reopened = reopenReceivable(next, id);
+    expect(reopened.receivables[0]).toMatchObject({ receivedAt: null, receiptTransactionId: null });
+    expect(balances(reopened).Bargeld).toBe(20000);
+
+    // Deleting the booking opens the entry again, too.
+    const deleted = deleteTransaction(next, receipt.id);
+    expect(deleted.receivables[0]).toMatchObject({ receivedAt: null, receiptTransactionId: null });
+  });
+
+  it('can be closed without a booking, edited and deleted', () => {
+    const { data, env } = sample();
+    let next = addReceivable(data, pizza, env);
+    const id = next.receivables[0]!.id;
+    next = updateReceivable(next, id, { ...pizza, amount: 2000, expectedDate: '2026-12-01' });
+    expect(next.receivables[0]).toMatchObject({ amount: 2000, expectedDate: '2026-12-01' });
+    next = markReceivableReceived(next, id, { accountId: null, date: '2026-11-08' }, env);
+    expect(next.transactions).toHaveLength(data.transactions.length);
+    expect(next.receivables[0]!.receivedAt).not.toBeNull();
+    expect(deleteReceivable(next, id).receivables).toEqual([]);
+  });
+
+  it('forgets a deleted account or tag but keeps the entry', () => {
+    const { data, env, bank } = sample();
+    let next = addTag(data, { name: 'Max', color: 'blue', image: null }, env);
+    const tag = next.tags[0]!.id;
+    next = addReceivable(next, { ...pizza, accountId: bank.id, tagId: tag }, env);
+    next = deleteTag(next, tag);
+    expect(next.receivables[0]!.tagId).toBeNull();
+    next = deleteAccount(next, bank.id);
+    expect(next.receivables[0]).toMatchObject({ accountId: null, amount: 1500 });
+  });
+});
+
+describe('savings goals', () => {
+  function withSavings() {
+    const base = sample();
+    const data = createAccount(base.data, { name: 'Tagesgeld', type: 'savings', color: 'green', initialBalance: 250000 }, base.env);
+    const savings = data.accounts.at(-1)!;
+    return { ...base, data, savings };
+  }
+
+  const goal = (accountId: string, fields: Partial<NewSavingsGoalInput> = {}): NewSavingsGoalInput => ({
+    accountId,
+    name: 'Japan-Reise',
+    parentId: null,
+    targetAmount: 300000,
+    targetDate: '2027-08-01',
+    color: 'red',
+    image: null,
+    note: '',
+    allocate: 0,
+    ...fields,
+  });
+
+  it('creates goals and sub-goals with money assigned right away', () => {
+    const { data, env, savings } = withSavings();
+    let next = addSavingsGoal(data, goal(savings.id, { allocate: 50000 }), env);
+    const japan = next.savingsGoals[0]!;
+    next = addSavingsGoal(next, goal(savings.id, { name: 'Flug', parentId: japan.id, targetAmount: 120000, allocate: 40000 }), env);
+    expect(next.savingsGoals.map((g) => [g.name, g.parentId, g.allocated])).toEqual([
+      ['Japan-Reise', null, 50000],
+      ['Flug', japan.id, 40000],
+    ]);
+    const [tree] = buildGoalTree(next.savingsGoals, savings.id);
+    expect(tree!.total).toBe(90000);
+    expect(unassignedOnAccount(250000, next.savingsGoals, savings.id)).toBe(160000);
+    // The balance itself does not change – the money stays on the account.
+    expect(balances(next)).toEqual(balances(data));
+  });
+
+  it('only exists in savings accounts and validates the input', () => {
+    const { data, env, savings, bank } = withSavings();
+    expect(() => addSavingsGoal(data, goal(bank.id), env)).toThrow('nur bei Sparkonten');
+    expect(() => addSavingsGoal(data, goal(savings.id, { name: '  ' }), env)).toThrow('Namen');
+    expect(() => addSavingsGoal(data, goal(savings.id, { targetAmount: 0 }), env)).toThrow(DomainError);
+    expect(() => addSavingsGoal(data, goal(savings.id, { targetDate: 'bald' }), env)).toThrow(DomainError);
+    expect(() => addSavingsGoal(data, goal(savings.id, { allocate: 250001 }), env)).toThrow('nicht mehr so viel Geld frei');
+    expect(() => addSavingsGoal(data, goal(savings.id, { parentId: 'weg' }), env)).toThrow(DomainError);
+    // Without target and date is fine.
+    const free = addSavingsGoal(data, goal(savings.id, { targetAmount: null, targetDate: null }), env);
+    expect(free.savingsGoals[0]).toMatchObject({ targetAmount: null, targetDate: null });
+  });
+
+  it('assigns and takes back money, never more than is free', () => {
+    const { data, env, savings } = withSavings();
+    let next = addSavingsGoal(data, goal(savings.id), env);
+    next = addSavingsGoal(next, goal(savings.id, { name: 'Auto', allocate: 200000 }), env);
+    const [japan, auto] = next.savingsGoals as [AppData['savingsGoals'][number], AppData['savingsGoals'][number]];
+    next = allocateToSavingsGoal(next, japan.id, 50000);
+    expect(next.savingsGoals[0]!.allocated).toBe(50000);
+    expect(() => allocateToSavingsGoal(next, japan.id, 1)).toThrow('nicht mehr so viel Geld frei');
+    next = allocateToSavingsGoal(next, auto.id, -30000);
+    next = allocateToSavingsGoal(next, japan.id, 30000);
+    expect(next.savingsGoals.map((g) => g.allocated)).toEqual([80000, 170000]);
+    expect(() => allocateToSavingsGoal(next, japan.id, -80001)).toThrow('nicht zugewiesen');
+    expect(() => allocateToSavingsGoal(next, japan.id, 0)).toThrow(DomainError);
+  });
+
+  it('can be edited and moved, but not into itself or too deep', () => {
+    const { data, env, savings } = withSavings();
+    let next = addSavingsGoal(data, goal(savings.id), env);
+    const japan = next.savingsGoals[0]!.id;
+    next = addSavingsGoal(next, goal(savings.id, { name: 'Flug', parentId: japan }), env);
+    const flug = next.savingsGoals[1]!.id;
+    next = addSavingsGoal(next, goal(savings.id, { name: 'Hinflug', parentId: flug }), env);
+    const hinflug = next.savingsGoals[2]!.id;
+    next = addSavingsGoal(next, goal(savings.id, { name: 'Gepäck', parentId: hinflug }), env);
+    const gepaeck = next.savingsGoals[3]!.id;
+    // A fifth level is too deep.
+    expect(() => addSavingsGoal(next, goal(savings.id, { name: 'Koffer', parentId: gepaeck }), env)).toThrow('Ebenen');
+
+    const edit = { name: 'Japan 2027', parentId: null, targetAmount: 350000, targetDate: null, color: 'violet', image: null, note: 'Tokio' };
+    next = updateSavingsGoal(next, japan, edit);
+    expect(next.savingsGoals[0]).toMatchObject({ name: 'Japan 2027', targetAmount: 350000, targetDate: null, note: 'Tokio' });
+    expect(() => updateSavingsGoal(next, japan, { ...edit, parentId: hinflug })).toThrow('in sich selbst');
+    expect(() => updateSavingsGoal(next, japan, { ...edit, parentId: japan })).toThrow('in sich selbst');
+
+    // Moving "Hinflug" (with "Gepäck") to the top level.
+    next = updateSavingsGoal(next, hinflug, { ...edit, name: 'Hinflug', parentId: null });
+    expect(next.savingsGoals[2]!.parentId).toBeNull();
+  });
+
+  it('deletes a goal with its sub-goals – the money is free again', () => {
+    const { data, env, savings } = withSavings();
+    let next = addSavingsGoal(data, goal(savings.id, { allocate: 10000 }), env);
+    const japan = next.savingsGoals[0]!.id;
+    next = addSavingsGoal(next, goal(savings.id, { name: 'Flug', parentId: japan, allocate: 20000 }), env);
+    next = addSavingsGoal(next, goal(savings.id, { name: 'Auto', allocate: 5000 }), env);
+    next = deleteSavingsGoal(next, japan);
+    expect(next.savingsGoals.map((g) => g.name)).toEqual(['Auto']);
+    expect(unassignedOnAccount(250000, next.savingsGoals, savings.id)).toBe(245000);
+  });
+
+  it('removes the goals together with their account', () => {
+    const { data, env, savings } = withSavings();
+    const next = addSavingsGoal(data, goal(savings.id, { allocate: 10000 }), env);
+    expect(deleteAccount(next, savings.id).savingsGoals).toEqual([]);
   });
 });

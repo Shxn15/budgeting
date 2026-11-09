@@ -3,10 +3,12 @@ import { motion } from 'motion/react';
 import type { CSSProperties } from 'react';
 import { accountColorCss } from '../../domain/colors';
 import { formatMoney } from '../../domain/money';
+import { goalsOfAccount } from '../../domain/savings';
 import type { Account, Cents } from '../../domain/types';
 import { Button, IconButton } from '../../components/ui/Button';
 import { cx } from '../../components/ui/cx';
 import { Menu } from '../../components/ui/Menu';
+import { useSavingsGoals } from '../../store/selectors';
 import { useUiStore } from '../../store/uiStore';
 import { AccountIcon } from './AccountIcon';
 import { accountMenu } from './accountMenu';
@@ -28,7 +30,11 @@ export function AccountCard({ account, balance, share, currency }: AccountCardPr
   const openAccount = useUiStore((s) => s.openAccount);
   const highlight = useUiStore((s) => s.highlight);
   const setHighlight = useUiStore((s) => s.setHighlight);
+  const goals = useSavingsGoals();
   const typeInfo = accountTypeInfo(account.type);
+  const goalCount = goalsOfAccount(goals, account.id).filter((g) => g.parentId === null).length;
+  const showType = typeInfo.label.toLowerCase() !== account.name.trim().toLowerCase();
+  const goalNote = goalCount > 0 ? (goalCount === 1 ? '1 Sparziel' : `${goalCount} Sparziele`) : null;
 
   return (
     <motion.article
@@ -58,8 +64,8 @@ export function AccountCard({ account, balance, share, currency }: AccountCardPr
           <h3 className="account-card__name" title={account.name}>
             {account.name}
           </h3>
-          {typeInfo.label.toLowerCase() !== account.name.trim().toLowerCase() && (
-            <p className="account-card__type">{typeInfo.label}</p>
+          {(showType || goalNote) && (
+            <p className="account-card__type">{[showType ? typeInfo.label : null, goalNote].filter(Boolean).join(' · ')}</p>
           )}
         </div>
         <div className="account-card__menu">

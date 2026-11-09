@@ -4,6 +4,10 @@ import { BalanceDialog } from '../features/accounts/BalanceDialog';
 import { BookingDialog } from '../features/booking/BookingDialog';
 import { ObligationDialog } from '../features/obligations/ObligationDialog';
 import { PayDialog } from '../features/obligations/PayDialog';
+import { ReceivableDialog } from '../features/receivables/ReceivableDialog';
+import { ReceiveDialog } from '../features/receivables/ReceiveDialog';
+import { AllocateDialog } from '../features/savings/AllocateDialog';
+import { GoalDialog } from '../features/savings/GoalDialog';
 import { PaySubscriptionDialog } from '../features/subscriptions/PaySubscriptionDialog';
 import { SubscriptionDialog } from '../features/subscriptions/SubscriptionDialog';
 import { TagDialog } from '../features/tags/TagDialog';
@@ -52,6 +56,14 @@ function renderDialog(dialog: DialogRequest, onClose: () => void) {
       return <PaySubscriptionDialog subscriptionId={dialog.subscriptionId} onClose={onClose} />;
     case 'tag':
       return <TagDialog tagId={dialog.tagId} onClose={onClose} />;
+    case 'receivable':
+      return <ReceivableDialog receivableId={dialog.receivableId} onClose={onClose} />;
+    case 'receive':
+      return <ReceiveDialog receivableId={dialog.receivableId} onClose={onClose} />;
+    case 'goal':
+      return <GoalDialog accountId={dialog.accountId} goalId={dialog.goalId} parentId={dialog.parentId} onClose={onClose} />;
+    case 'allocate':
+      return <AllocateDialog goalId={dialog.goalId} mode={dialog.mode} onClose={onClose} />;
     case 'confirm':
       return <ConfirmDialog {...dialog} onClose={onClose} />;
   }

@@ -5,6 +5,16 @@
   margin: -4px -10px -8px;
 }
 
+/* Same width for every row's actions, so the amounts line up. */
+.upcoming-list .ob-row__actions {
+  justify-content: flex-end;
+  min-width: 32px;
+}
+
+.upcoming-list--full .ob-row__actions {
+  min-width: 130px;
+}
+
 .upcoming-list__more {
   align-self: flex-start;
   margin: 4px 0 6px 12px;
@@ -39,4 +49,64 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
   }
+}
+
+.upcoming-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.upcoming-plan__month {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.upcoming-plan__sum {
+  color: var(--text-2);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.upcoming-plan__empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 6px;
+  color: var(--text-3);
+  font-size: 13.5px;
+}
+
+.upcoming-plan__empty svg {
+  width: 17px;
+  height: 17px;
+  color: var(--success);
+}
+
+.upcoming-plan__later {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px -10px -6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.upcoming-plan__later .upcoming-list {
+  margin: 0 0 6px;
+  padding-left: 14px;
+}
+
+.upcoming-plan__count {
+  color: var(--text-3);
+  font-weight: 560;
 }

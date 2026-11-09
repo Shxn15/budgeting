@@ -2,7 +2,15 @@ import { create } from 'zustand';
 import type { ObligationKind } from '../domain/types';
 
 /** Pages of the app – see app/pages.tsx. */
-export type PageId = 'overview' | 'account' | 'obligations' | 'subscriptions' | 'spending' | 'transactions' | 'settings';
+export type PageId =
+  | 'overview'
+  | 'account'
+  | 'obligations'
+  | 'subscriptions'
+  | 'spending'
+  | 'tags'
+  | 'transactions'
+  | 'settings';
 
 /** Every dialog the app can show – rendered by app/DialogHost.tsx. */
 export type DialogRequest =
@@ -16,6 +24,14 @@ export type DialogRequest =
   | { type: 'subscription'; subscriptionId?: string }
   | { type: 'paySubscription'; subscriptionId: string }
   | { type: 'tag'; tagId?: string }
+  /** Money someone owes me. */
+  | { type: 'receivable'; receivableId?: string }
+  /** The money of a receivable arrived. */
+  | { type: 'receive'; receivableId: string }
+  /** Create (with accountId, optionally inside parentId) or edit (goalId) a savings goal. */
+  | { type: 'goal'; accountId: string; goalId?: string; parentId?: string }
+  /** Assign money of the savings account to a goal, or take it back. */
+  | { type: 'allocate'; goalId: string; mode?: 'add' | 'remove' }
   | {
       type: 'confirm';
       title: string;

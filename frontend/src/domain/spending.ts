@@ -169,13 +169,14 @@ export function accountFlows(
   return { spent, received };
 }
 
-/** How often each tag was used (bookings + obligations) – for "frequently used" suggestions. */
+/** How often each tag was used (bookings, obligations, receivables) – for "frequently used" suggestions. */
 export function tagUsage(
   transactions: readonly Pick<Transaction, 'tagId'>[],
   obligations: readonly { tagId: string | null }[],
+  receivables: readonly { tagId: string | null }[] = [],
 ): Map<string, number> {
   const usage = new Map<string, number>();
-  for (const item of [...transactions, ...obligations]) {
+  for (const item of [...transactions, ...obligations, ...receivables]) {
     if (item.tagId) usage.set(item.tagId, (usage.get(item.tagId) ?? 0) + 1);
   }
   return usage;

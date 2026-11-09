@@ -10,6 +10,7 @@ import { isISODate, toISODate } from '../domain/dates';
 import { isImageDataUrl } from '../domain/images';
 import { MAX_CENTS } from '../domain/money';
 import { MAX_INTERVAL_COUNT } from '../domain/subscriptions';
+import { DEFAULT_COLOR_THEME, isColorTheme } from '../domain/themes';
 import type {
   Account,
   AccountType,
@@ -17,6 +18,8 @@ import type {
   IntervalUnit,
   Obligation,
   ObligationKind,
+  Receivable,
+  SavingsGoal,
   Settings,
   Subscription,
   Tag,
@@ -217,11 +220,100 @@ function normalizeSubscriptions(raw: unknown, now: string): Subscription[] {
   return subscriptions;
 }
 
+function normalizeReceivables(raw: unknown, now: string): Receivable[] {
+  const receivables: Receivable[] = [];
+  const seen = new Set<string>();
+  for (const item of list(raw)) {
+    const receivableId = id(item.id);
+    const amount = cents(item.amount);
+    if (receivableId === null || amount === null || seen.has(receivableId)) continue;
+    seen.add(receivableId);
+    receivables.push({
+      id: receivableId,
+      counterparty: str(item.counterparty),
+      title: str(item.title),
+      amount: Math.abs(amount),
+      expectedDate: isISODate(item.expectedDate) ? item.expectedDate : null,
+      accountId: nullableStr(item.accountId),
+      tagId: nullableStr(item.tagId),
+      note: str(item.note),
+      createdAt: timestamp(item.createdAt, now),
+      receivedAt: typeof item.receivedAt === 'string' && item.receivedAt !== '' ? timestamp(item.receivedAt, now) : null,
+      receiptTransactionId: nullableStr(item.receiptTransactionId),
+    });
+  }
+  return receivables;
+}
+
+/**
+ * Savings goals. A goal needs an existing account (its money lives there).
+ * A parent in another account, a missing parent or a loop of parents makes
+ * the goal a top-level goal instead of dropping it.
+ */
+function normalizeSavingsGoals(raw: unknown, now: string, accountIds: ReadonlySet<string>): SavingsGoal[] {
+  const goals: SavingsGoal[] = [];
+  const seen = new Set<string>();
+  for (const item of list(raw)) {
+    const goalId = id(item.id);
+    const accountId = id(item.accountId);
+    if (goalId === null || accountId === null || !accountIds.has(accountId) || seen.has(goalId)) continue;
+    seen.add(goalId);
+    const target = cents(item.targetAmount);
+    const allocated = cents(item.allocated);
+    goals.push({
+      id: goalId,
+      accountId,
+      parentId: nullableStr(item.parentId),
+      name: str(item.name).trim() || 'Sparziel',
+      targetAmount: target !== null && target > 0 ? target : null,
+      targetDate: isISODate(item.targetDate) ? item.targetDate : null,
+      allocated: allocated !== null && allocated > 0 ? allocated : 0,
+      color: isAccountColor(item.color) ? item.color : nextAccountColor(goals),
+      image: image(item.image),
+      note: str(item.note),
+      createdAt: timestamp(item.createdAt, now),
+    });
+  }
+
+  const byId = new Map(goals.map((g) => [g.id, g]));
+  const parentOf = new Map<string, string | null>();
+  for (const goal of goals) {
+    const parent = goal.parentId === null ? undefined : byId.get(goal.parentId);
+    parentOf.set(goal.id, parent && parent.id !== goal.id && parent.accountId === goal.accountId ? parent.id : null);
+  }
+  // Break loops (a -> b -> a): the goal where the walk returns becomes top level.
+  for (const goal of goals) {
+    const visited = new Set<string>([goal.id]);
+    let current = goal.id;
+    for (;;) {
+      const parent = parentOf.get(current) ?? null;
+      if (parent === null) break;
+      if (visited.has(parent)) {
+        parentOf.set(current, null);
+        break;
+      }
+      visited.add(parent);
+      current = parent;
+    }
+  }
+  return goals.map((g) => ({ ...g, parentId: parentOf.get(g.id) ?? null }));
+}
+
+const MAX_COLLAPSED = 100;
+
+function normalizeCollapsed(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const keys = value.filter((key): key is string => typeof key === 'string' && key.length > 0 && key.length <= 80);
+  return [...new Set(keys)].slice(0, MAX_COLLAPSED);
+}
+
 function normalizeSettings(raw: unknown): Settings {
   const item = isRawDocument(raw) ? raw : {};
   const currency = str(item.currency).toUpperCase();
   return {
     theme: oneOf(item.theme, THEMES, 'system'),
+    colorTheme: isColorTheme(item.colorTheme) ? item.colorTheme : DEFAULT_COLOR_THEME,
+    collapsedSections: normalizeCollapsed(item.collapsedSections),
     currency: /^[A-Z]{3}$/.test(currency) ? currency : DEFAULT_CURRENCY,
   };
 }
@@ -254,6 +346,13 @@ export function normalizeData(doc: RawDocument, appVersion: string, now: Date = 
     paymentTransactionId: ref(o.paymentTransactionId, transactionIds),
   }));
 
+  const receivables = normalizeReceivables(doc.receivables, nowIso).map((r) => ({
+    ...r,
+    accountId: ref(r.accountId, accountIds),
+    tagId: ref(r.tagId, tagIds),
+    receiptTransactionId: ref(r.receiptTransactionId, transactionIds),
+  }));
+
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     accounts,
@@ -261,6 +360,8 @@ export function normalizeData(doc: RawDocument, appVersion: string, now: Date = 
     obligations,
     tags,
     subscriptions,
+    receivables,
+    savingsGoals: normalizeSavingsGoals(doc.savingsGoals, nowIso, accountIds),
     settings: normalizeSettings(doc.settings),
     meta: {
       createdAt: timestamp(meta.createdAt, nowIso),

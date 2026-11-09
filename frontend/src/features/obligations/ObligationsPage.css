@@ -2,14 +2,42 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 14px 16px 14px 22px;
   border-bottom: 1px solid var(--border);
+}
+
+.ob-card__title {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .ob-list {
   padding: 8px;
 }
 
-.ob-subscriptions {
+.ob-plan {
+  padding: 16px 22px 18px;
+}
+
+.ob-plan__hint {
+  margin-top: 14px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.ob-receivables {
   margin-top: 16px;
+}
+
+.ob-receivables__done {
+  margin: 14px -10px -6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.ob-receivables__done .rc-list {
+  margin: 0 0 4px;
+  padding-left: 14px;
 }

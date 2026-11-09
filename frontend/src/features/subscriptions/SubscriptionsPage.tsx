@@ -1,12 +1,11 @@
 import { CalendarClock, Plus, Repeat, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
-import { addDays } from '../../domain/dates';
+import { formatMonthName, monthKey } from '../../domain/dates';
 import { formatMoney } from '../../domain/money';
 import { chargeLabel, dueLabelForDate } from '../../domain/obligations';
-import { chargesUntil, monthlyCost, sortSubscriptions, totalMonthlyCost } from '../../domain/subscriptions';
+import { monthlyCost, remainingThisMonth, sortSubscriptions, totalMonthlyCost } from '../../domain/subscriptions';
 import type { Subscription } from '../../domain/types';
-import { UPCOMING_DAYS } from '../../domain/upcoming';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -37,9 +36,8 @@ export function SubscriptionsPage() {
   const paused = useMemo(() => sortBy(subscriptions.filter((s) => s.paused), 'name'), [subscriptions]);
   const monthly = totalMonthlyCost(subscriptions);
   const next = sortSubscriptions(active)[0] ?? null;
-  const until = addDays(today, UPCOMING_DAYS);
-  const soon = active.flatMap((s) => chargesUntil(s, until).map(() => s.amount));
-  const soonSum = soon.reduce((sum, a) => sum + a, 0);
+  const left = remainingThisMonth(subscriptions, today);
+  const monthName = formatMonthName(monthKey(today));
   const autoCount = active.filter((s) => s.autoPay).length;
 
   const add = () => openDialog({ type: 'subscription' });
@@ -85,9 +83,13 @@ export function SubscriptionsPage() {
                 ? `${next.autoPay ? chargeLabel(next.nextDueDate, today) : dueLabelForDate(next.nextDueDate, today)} · ${formatMoney(next.amount, currency)}`
                 : 'Keine aktiven Abos'}
             </StatTile>
-            <StatTile label={`Nächste ${UPCOMING_DAYS} Tage`} value={formatMoney(soonSum, currency)}>
-              {soon.length === 1 ? '1 Abbuchung' : `${soon.length} Abbuchungen`}
-              {autoCount > 0 && ` · ${autoCount} automatisch`}
+            <StatTile label={`Noch im ${monthName}`} value={formatMoney(left.total, currency)}>
+              {left.count === 0
+                ? `im ${monthName} alles bezahlt`
+                : left.count === 1
+                  ? '1 Abbuchung'
+                  : `${left.count} Abbuchungen`}
+              {left.count > 0 && autoCount > 0 && ` · ${autoCount} automatisch`}
             </StatTile>
           </div>
 

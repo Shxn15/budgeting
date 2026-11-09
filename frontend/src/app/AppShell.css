@@ -8,6 +8,10 @@
   min-width: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  /* Colour themes paint a soft wash at the top of every page (scrolls with it). */
+  background-image: var(--bg-art);
+  background-repeat: no-repeat;
+  background-attachment: local;
 }
 
 .shell__page {

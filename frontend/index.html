@@ -10,9 +10,14 @@
       // localStorage only mirrors the setting stored in data.json.
       (function () {
         var pref = 'system';
-        try { pref = localStorage.getItem('budgeting.theme') || 'system'; } catch (e) {}
+        var palette = 'standard';
+        try {
+          pref = localStorage.getItem('budgeting.theme') || 'system';
+          palette = localStorage.getItem('budgeting.palette') || 'standard';
+        } catch (e) {}
         var dark = pref === 'dark' || (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.palette = /^[a-z]{2,20}$/.test(palette) ? palette : 'standard';
       })();
     </script>
   </head>

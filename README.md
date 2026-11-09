@@ -1,12 +1,40 @@
 # Budgeting
 
 Eine moderne Windows-App, um deine Finanzen im Blick zu behalten: Konten anlegen, Geld hinzufügen und entfernen,
-Abos mit Profilbild verwalten, festhalten, wem du Geld schuldest oder was bald bezahlt werden muss – und sehen, wofür
-du wie viel ausgibst. Ganz oben zeigt ein großes Kreisdiagramm, wie sich dein Geld auf die Konten verteilt.
+Abos mit Profilbild verwalten, festhalten, wem du Geld schuldest, wer dir noch Geld schuldet und was bald bezahlt
+werden muss, auf Sparziele hinsparen – und sehen, wofür du wie viel ausgibst. Ganz oben zeigt ein großes
+Kreisdiagramm, wie sich dein Geld auf die Konten verteilt.
 
-## Funktionen (Version 0.2.0)
+## Funktionen (Version 0.3.0)
 
-**Neu in 0.2.0**
+**Neu in 0.3.0**
+
+- **„Anstehend“ zählt nur den aktuellen Monat**: Die Kachel zeigt, was im laufenden Monat noch bezahlt werden muss
+  (Überfälliges inklusive). Einträge ohne Datum werden daneben extra genannt.
+- **Anstehende Zahlungen Monat für Monat**: Auf der Übersicht und unter „Zahlungen & Schulden“ stehen die Zahlungen
+  dieses Monats offen da, spätere Monate sind zugeklappt – „Dezember (3) · 85,98 €“ öffnet mit einem Klick die drei
+  Zahlungen aus dem Dezember. Abos erscheinen dort mindestens für die nächsten zwei Monate (bzw. bis zur letzten
+  eingetragenen Zahlung, höchstens ein Jahr).
+- **„Frei verfügbar“ neu berechnet**: Geld auf deinen Konten **ohne Sparkonten** minus das, was diesen Monat noch
+  bezahlt werden muss. Zahlungen, die von einem Sparkonto abgehen, zählen nicht mit.
+- **Sparziele** (in jedem Sparkonto, Konto anklicken): Ziele wie „Japan-Reise“ mit Name, Bild, Zielbetrag und
+  Zieldatum anlegen und **Geld vom Sparkonto zuweisen** oder zurücknehmen. In jedem Ziel lassen sich **Unterziele**
+  anlegen („Flug“, „Hotel“ …), bis zu vier Ebenen tief – das Oberziel zählt alles zusammen. Fortschrittsbalken,
+  „noch X €“, „ca. Y € pro Monat bis Aug. 2027“ und ein Balken, wie sich das Sparkonto auf die Ziele verteilt.
+  Das Geld bleibt dabei auf dem Konto, es wird nur aufgeteilt.
+- **Bekomme ich noch**: Eintragen, wenn dir jemand Geld schuldet – mit Datum oder „Weiß ich nicht“. Eigener Kasten
+  auf der Übersicht neben „Anstehende Zahlungen“ und unter „Zahlungen & Schulden“. Mit **„Erhalten“** wird das Geld
+  direkt auf ein Konto gebucht (rückgängig machbar).
+- **Farbthemen**: Babyrosa, Lavendel, Mint, Pfirsich und Himmelblau (jeweils hell und dunkel) bringen Farbe in die
+  App – Hintergrund, Seitenleiste, Logo und Akzentfarbe passen sich an (Einstellungen → Darstellung).
+- **Einklappbar**: Der Kontenbereich und „Letzte Buchungen“ (jetzt unten auf der Übersicht) lassen sich zuklappen;
+  die App merkt sich das.
+- **Tags verwalten** (neue Seite „Tags“): alle Tags auf einen Blick, suchen, umbenennen, Bild/Farbe ändern und
+  löschen – auch Tags, die gerade nicht in den Ausgaben auftauchen.
+- **Abos pro Monat**: Die Kachel zeigt Anzahl und Monatskosten **und** was diesen Monat noch abgebucht wird
+  („4 Abos · noch 30,00 € im November“), auch auf der Abo-Seite.
+
+**Aus 0.2.0**
 
 - **Abos** (eigene Seite): Netflix, Spotify, Handyvertrag, Fitnessstudio … mit **rundem Profilbild** wie bei WhatsApp
   (Bild aus deinen Dateien wählen, im Kreis verschieben und zoomen – auch ganz herauszoomen, damit ein Logo komplett
@@ -27,8 +55,8 @@ du wie viel ausgibst. Ganz oben zeigt ein großes Kreisdiagramm, wie sich dein G
   Monate (z. B. 5), mit ‹ › durchblätterbar. Rangliste nach Tags, Säulendiagramm pro Monat (auch als Tabelle),
   Vergleich mit dem Zeitraum davor (fair: läuft der Monat noch, wird z. B. 1.–8. Nov. mit 1.–8. Okt. verglichen).
   Einen Tag anklicken zeigt nur ihn: Verlauf, Anteil und alle Zahlungen. Abos zählen automatisch mit.
-- **Übersicht**: „Frei verfügbar“ berücksichtigt jetzt auch die Abos der nächsten 30 Tage, dazu Abo-Kosten pro Monat
-  und Ausgaben im laufenden Monat. „Anstehende Zahlungen“ zeigt Rechnungen, Schulden und Abos gemeinsam.
+- **Übersicht**: Abo-Kosten pro Monat und Ausgaben im laufenden Monat. „Anstehende Zahlungen“ zeigt Rechnungen,
+  Schulden und Abos gemeinsam.
 - **Buchungen** lassen sich zusätzlich nach Tag filtern; bei sehr vielen Buchungen wird schrittweise nachgeladen.
 
 **Aus 0.1.0**
@@ -61,7 +89,7 @@ du wie viel ausgibst. Ganz oben zeigt ein großes Kreisdiagramm, wie sich dein G
 
 Die Daten liegen **nicht** neben der .exe, sondern in deinem Benutzerprofil. Für ein Update einfach die neue
 .exe starten (die alte kann gelöscht werden) – alle Konten, Buchungen und Einträge sind sofort wieder da.
-Version 0.2.0 übernimmt die Daten von 0.1.0 automatisch (vorher wird eine Sicherung angelegt).
+Version 0.3.0 übernimmt die Daten von 0.1.0 und 0.2.0 automatisch (vorher wird eine Sicherung angelegt).
 
 Profilbilder werden beim Auswählen zugeschnitten, verkleinert (192 × 192 Pixel, meist nur wenige KB) und **in
 `data.json` mitgespeichert** – sie sind also in jeder Sicherung enthalten und hängen nicht von der Originaldatei ab.
@@ -106,15 +134,19 @@ wails.json                App-Name und VERSION (einzige Stelle für die Versions
 build/                    App-Icon, Windows-Manifest und Versionsinfos der .exe
 frontend/src/
   domain/                 Datenmodell (types.ts) und reine Fachlogik: Geld, Datum, Kontostände, Operationen,
-                          Abo-Zeitplan (subscriptions.ts), Anstehendes (upcoming.ts), Statistik (spending.ts)
+                          Abo-Zeitplan (subscriptions.ts), Anstehendes pro Monat und „Frei verfügbar“
+                          (upcoming.ts), Statistik (spending.ts), Sparziele (savings.ts), „Bekomme ich noch“
+                          (receivables.ts), Farbthemen (themes.ts)
   persistence/            Datenformat-Version, Migrationen, Reparatur beim Laden (+ Tests)
   platform/backend.ts     Brücke zu Go (im Browser: localStorage-Ersatz zum Entwickeln)
-  store/                  Zustand, Aktionen, automatisches Speichern, Theme
+  store/                  Zustand, Aktionen, automatisches Speichern, Theme (hell/dunkel + Farbthema)
+  styles/tokens.css       alle Farben, auch der Farbthemen (data-palette)
   components/             UI-Bausteine (Button, Modal, Felder, Menü, Diagramm, Layout,
                           avatar/: runde Profilbilder, Bildauswahl und Zuschneiden)
   features/               Seiten und Dialoge: overview, accounts (inkl. Kontoseite), booking (Geld hinzufügen/
-                          entfernen), subscriptions (Abos), tags, spending (Ausgaben), upcoming, obligations,
-                          transactions, transfers, settings
+                          entfernen), subscriptions (Abos), tags (inkl. Tags-Seite), spending (Ausgaben),
+                          upcoming (Monatsgruppen), obligations, receivables (Bekomme ich noch),
+                          savings (Sparziele), transactions, transfers, settings
   app/                    App-Rahmen, Seitenliste (pages.tsx), Dialog-Verwaltung (DialogHost.tsx)
 ```
 
@@ -149,8 +181,8 @@ Außerdem baut **GitHub Actions** bei jedem Push automatisch die .exe (zu finden
 
 ### Neue Version veröffentlichen
 
-1. `info.productVersion` in `wails.json` erhöhen (z. B. `0.2.0`).
-2. Committen und einen Tag pushen: `git tag v0.2.0 && git push origin v0.2.0`.
+1. `info.productVersion` in `wails.json` erhöhen (z. B. `0.3.0`).
+2. Committen und einen Tag pushen: `git tag v0.3.0 && git push origin v0.3.0`.
 3. GitHub Actions erstellt ein Release mit der fertigen .exe.
 
 ### Das Datenmodell ändern (wichtig!)
@@ -162,12 +194,13 @@ Gespeicherte Daten müssen in jeder künftigen Version lesbar bleiben. Wenn sich
 2. In `frontend/src/persistence/migrations.ts` eine Migration für die neue Version ergänzen.
 3. `domain/types.ts` und `persistence/normalize.ts` anpassen.
 4. In `persistence.test.ts` einen Test mit einer echten Datei der alten Version hinzufügen. Die vorhandenen
-   Testdateien `SCHEMA_1_FILE` und `SCHEMA_2_FILE` nie ändern.
+   Testdateien `SCHEMA_1_FILE`, `SCHEMA_2_FILE` und `SCHEMA_3_FILE` nie ändern.
 
 | Datenformat | App-Version | Inhalt |
 | --- | --- | --- |
 | v1 | 0.1.0 | Konten, Buchungen, Zahlungen & Schulden, Einstellungen |
 | v2 | 0.2.0 | zusätzlich Tags (mit Bild), Abos; Buchungen mit Tag/Abo/„nur Statistik“, Zahlungen mit Tag |
+| v3 | 0.3.0 | zusätzlich „Bekomme ich noch“ (`receivables`), Sparziele (`savingsGoals`), Farbthema und eingeklappte Bereiche in den Einstellungen |
 
 Niemals `dataDirName` in `main.go` ändern – sonst findet die App die alten Daten nicht mehr.
 

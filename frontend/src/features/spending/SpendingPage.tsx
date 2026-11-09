@@ -43,6 +43,7 @@ export function SpendingPage() {
   const currency = useCurrency();
   const today = useToday();
   const openDialog = useUiStore((s) => s.openDialog);
+  const navigate = useUiStore((s) => s.navigate);
   const currentMonth = monthKey(today);
 
   const [preset, setPreset] = useState<RangePreset>('1');
@@ -130,8 +131,8 @@ export function SpendingPage() {
         subtitle="Wofür du wie viel Geld ausgibst – nach Tags, für einen Monat oder mehrere."
         actions={
           <>
-            <Button icon={<TagIcon />} onClick={() => openDialog({ type: 'tag' })}>
-              Neuer Tag
+            <Button icon={<TagIcon />} onClick={() => navigate('tags')}>
+              Tags verwalten
             </Button>
             <Button
               variant="primary"

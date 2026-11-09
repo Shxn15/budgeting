@@ -74,4 +74,30 @@ export function runAutoPay(today: ISODate): Transaction[] {
   return after.transactions.filter((t) => !known.has(t.id));
 }
 
+export const addReceivable = (input: ops.ReceivableInput) => apply((d) => ops.addReceivable(d, input));
+export const updateReceivable = (id: string, input: ops.ReceivableInput) =>
+  apply((d) => ops.updateReceivable(d, id, input));
+export const deleteReceivable = (id: string) => apply((d) => ops.deleteReceivable(d, id));
+export const markReceivableReceived = (id: string, input: ops.ReceiveInput) =>
+  apply((d) => ops.markReceivableReceived(d, id, input));
+export const reopenReceivable = (id: string) => apply((d) => ops.reopenReceivable(d, id));
+
+/** Creates a savings goal and returns its id. */
+export function addSavingsGoal(input: ops.NewSavingsGoalInput): string {
+  apply((d) => ops.addSavingsGoal(d, input));
+  return useDataStore.getState().data.savingsGoals.at(-1)!.id;
+}
+export const updateSavingsGoal = (id: string, input: ops.SavingsGoalInput) =>
+  apply((d) => ops.updateSavingsGoal(d, id, input));
+export const deleteSavingsGoal = (id: string) => apply((d) => ops.deleteSavingsGoal(d, id));
+export const allocateToSavingsGoal = (id: string, delta: Cents) => apply((d) => ops.allocateToSavingsGoal(d, id, delta));
+
 export const updateSettings = (patch: Partial<Settings>) => apply((d) => ops.updateSettings(d, patch));
+
+/** Folds a section of the UI away or opens it again (remembered in the settings). */
+export function toggleSection(key: string): void {
+  const current = useDataStore.getState().data.settings.collapsedSections;
+  updateSettings({
+    collapsedSections: current.includes(key) ? current.filter((k) => k !== key) : [...current, key],
+  });
+}

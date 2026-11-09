@@ -19,6 +19,17 @@ Wails v2 (Go) shell + React 19 / TypeScript / Vite frontend. See README.md (Germ
   booked by `processDueSubscriptions`, triggered from `app/App.tsx` (start, midnight, after changes).
 - Statistics count `expense`, `payment` and `subscription` bookings, grouped by tag (`domain/spending.ts`).
 - Bookings with `affectsBalance: false` are statistics-only; `computeBalances` skips them.
+- Upcoming payments are a month plan (`buildUpcomingPlan` in `domain/upcoming.ts`): current month incl. overdue,
+  later months (UI folds them: "Dezember (3)"), undated. "Anstehend" = current month only.
+  "Frei verfügbar" = `computeFreeMoney`: balances without savings accounts minus this month's items not paid from savings.
+- Receivables ("Bekomme ich noch", `domain/receivables.ts`): money others owe me, optional date; "Erhalten" books an
+  `income` booking linked via `receiptTransactionId` (deleting that booking reopens the entry). Not part of free money.
+- Savings goals (`domain/savings.ts`): only for `type: 'savings'` accounts, nested via `parentId` (max 4 levels).
+  Only the assignment `allocated` is stored; a goal's total = own + sub-goals. Never assign more than the free money.
+- Colour themes: key in `settings.colorTheme` (`domain/themes.ts`), CSS in `styles/tokens.css` under
+  `:root[data-palette='…']` (+ `[data-theme='dark']`), window background per theme in `main.go` (`backgrounds`).
+  Light/dark stays `settings.theme`. index.html applies both from localStorage before the first paint.
+- Foldable sections are remembered in `settings.collapsedSections` (`useCollapsed` in `store/selectors.ts`).
 
 ## Delivering builds (user's explicit wish)
 
@@ -32,7 +43,8 @@ The user's data must survive every update.
 - Never change `dataDirName` in `main.go` (data lives in `%APPDATA%\Budgeting`).
 - Any change to the stored document format: bump `CURRENT_SCHEMA_VERSION`, add a migration in
   `persistence/migrations.ts`, update `normalize.ts`, add a test with a real old file.
-- Never edit released migrations or the `SCHEMA_1_FILE` / `SCHEMA_2_FILE` fixtures in `persistence/persistence.test.ts`.
+- Never edit released migrations or the `SCHEMA_1_FILE` / `SCHEMA_2_FILE` / `SCHEMA_3_FILE` fixtures in
+  `persistence/persistence.test.ts`.
 - A file with a newer schema version must stay untouched (read-only screen).
 
 ## Commands

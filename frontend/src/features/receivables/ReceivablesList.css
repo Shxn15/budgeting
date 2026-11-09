@@ -1,0 +1,42 @@
+.rc-list {
+  container: receivables / inline-size;
+  display: flex;
+  flex-direction: column;
+  margin: -4px -10px -8px;
+}
+
+.rc-list__more {
+  align-self: flex-start;
+  margin: 4px 0 6px 12px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Narrow columns (overview): the "Erhalten" button shrinks to its icon. */
+@container receivables (max-width: 460px) {
+  .rc-list .ob-row {
+    gap: 10px;
+  }
+
+  .rc-list .ob-row__actions .btn {
+    width: 32px;
+    padding: 0;
+  }
+
+  .rc-list .ob-row__actions .btn__icon {
+    margin: 0;
+  }
+
+  .rc-list .ob-row__actions .btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}

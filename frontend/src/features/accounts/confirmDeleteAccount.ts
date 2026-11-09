@@ -5,7 +5,10 @@ import { useUiStore } from '../../store/uiStore';
 
 export function confirmDeleteAccount(account: Account) {
   const ui = useUiStore.getState();
-  const autoSubs = useDataStore.getState().data.subscriptions.filter((s) => s.accountId === account.id && s.autoPay).length;
+  const { data } = useDataStore.getState();
+  const autoSubs = data.subscriptions.filter((s) => s.accountId === account.id && s.autoPay).length;
+  const goals = data.savingsGoals.filter((g) => g.accountId === account.id).length;
+  const goalsNote = goals === 0 ? '' : goals === 1 ? ' Sein Sparziel wird mitgelöscht.' : ` Seine ${goals} Sparziele werden mitgelöscht.`;
   const subsNote =
     autoSubs === 0
       ? ''
@@ -15,7 +18,7 @@ export function confirmDeleteAccount(account: Account) {
   ui.openDialog({
     type: 'confirm',
     title: 'Konto löschen?',
-    message: `„${account.name}“ wird mit seinen Buchungen gelöscht – sie fehlen dann auch in der Ausgaben-Statistik. Umbuchungen zu anderen Konten bleiben dort erhalten, damit deren Kontostand gleich bleibt.${subsNote}`,
+    message: `„${account.name}“ wird mit seinen Buchungen gelöscht – sie fehlen dann auch in der Ausgaben-Statistik. Umbuchungen zu anderen Konten bleiben dort erhalten, damit deren Kontostand gleich bleibt.${subsNote}${goalsNote}`,
     confirmLabel: 'Konto löschen',
     danger: true,
     onConfirm: () => {

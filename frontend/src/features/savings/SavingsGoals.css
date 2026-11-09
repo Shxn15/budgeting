@@ -1,0 +1,246 @@
+.goals-card {
+  margin-bottom: 14px;
+}
+
+/* How the money of the account is split over the goals. */
+.goals-split {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.goals-split__bar {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  background: var(--chart-track);
+  border-radius: var(--radius-full);
+}
+
+.goals-split__bar span {
+  display: block;
+  height: 100%;
+  background: var(--goal-color);
+  transition: width 600ms var(--ease-out);
+}
+
+.goals-split__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.goals-split__legend strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.goals-split__legend .amount-negative strong {
+  color: var(--negative);
+}
+
+.goals-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: var(--warning-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.goals-warning svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--warning);
+}
+
+.goals-tree {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -10px -8px;
+}
+
+.goal__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 4px;
+  border-radius: var(--radius);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.goal__row:hover {
+  background: var(--surface-2);
+}
+
+.goal__expand,
+.goal__expand-spacer {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.goal__expand {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-xs);
+}
+
+.goal__expand:hover {
+  background: var(--surface-3);
+}
+
+.goal__avatar {
+  flex: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+}
+
+.goal__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.goal__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.goal__name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14.5px;
+  font-weight: 640;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal--sub .goal__name {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.goal__count {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 540;
+}
+
+.goal__amount {
+  flex: none;
+  font-size: 14.5px;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.goal--sub .goal__amount {
+  font-size: 13.5px;
+}
+
+.goal__target {
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 540;
+}
+
+.goal__bar {
+  height: 7px;
+  margin-top: 7px;
+  overflow: hidden;
+  background: var(--chart-track);
+  border-radius: var(--radius-full);
+}
+
+.goal__bar span {
+  display: block;
+  height: 100%;
+  background: var(--goal-color);
+  border-radius: var(--radius-full);
+  transition: width 600ms var(--ease-out);
+}
+
+.goal.is-reached > .goal__row .goal__bar span {
+  background: var(--success);
+}
+
+.goal__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 8px;
+  margin-top: 5px;
+  min-width: 0;
+}
+
+.goal__facts {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal__note {
+  font-style: italic;
+}
+
+.goal__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Sub-goals: indented with a guide line in the colour of the parent. */
+.goal__children {
+  position: relative;
+  margin-left: 28px;
+  padding-left: 14px;
+}
+
+.goal__children::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 12px;
+  left: 0;
+  width: 2px;
+  background: color-mix(in srgb, var(--goal-color) 35%, transparent);
+  border-radius: 2px;
+}
+
+@container page (max-width: 760px) {
+  .goal__actions .btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .goal__actions .btn--sm {
+    width: 32px;
+    padding: 0;
+  }
+}

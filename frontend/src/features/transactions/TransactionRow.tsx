@@ -7,6 +7,7 @@ import { Avatar } from '../../components/avatar/Avatar';
 import { IconButton } from '../../components/ui/Button';
 import { cx } from '../../components/ui/cx';
 import { deleteTransaction } from '../../store/actions';
+import { useDataStore } from '../../store/dataStore';
 import { useAccountMap, useCurrency, useSubscriptionMap, useTagMap } from '../../store/selectors';
 import { useUiStore } from '../../store/uiStore';
 import { describeTransaction } from './describe';
@@ -34,18 +35,21 @@ export function TransactionRow({ transaction: t, today, perspective = null, comp
   const amountText =
     view.sign === 0 ? formatMoney(view.amount, currency) : formatMoney(view.sign * view.amount, currency, { sign: true });
 
-  const confirmDelete = () =>
+  const confirmDelete = () => {
+    const fromReceivable = useDataStore.getState().data.receivables.some((r) => r.receiptTransactionId === t.id);
     openDialog({
       type: 'confirm',
       title: 'Buchung löschen?',
       message:
         t.kind === 'payment' && t.obligationId
           ? 'Die Zahlung wird rückgängig gemacht: Der Kontostand wird zurückgesetzt und der Eintrag ist wieder offen.'
-          : t.kind === 'subscription'
-            ? 'Die Abbuchung wird entfernt und der Kontostand zurückgerechnet. Das Abo selbst läuft normal weiter.'
-            : view.statsOnly
-              ? 'Die Buchung wird entfernt. Der Kontostand ändert sich nicht, weil sie nur für die Statistik war.'
-              : 'Die Buchung wird entfernt und die Kontostände werden entsprechend zurückgerechnet.',
+          : fromReceivable
+            ? 'Das erhaltene Geld wird wieder abgezogen und der Eintrag steht wieder unter „Bekomme ich noch“.'
+            : t.kind === 'subscription'
+              ? 'Die Abbuchung wird entfernt und der Kontostand zurückgerechnet. Das Abo selbst läuft normal weiter.'
+              : view.statsOnly
+                ? 'Die Buchung wird entfernt. Der Kontostand ändert sich nicht, weil sie nur für die Statistik war.'
+                : 'Die Buchung wird entfernt und die Kontostände werden entsprechend zurückgerechnet.',
       confirmLabel: 'Buchung löschen',
       danger: true,
       onConfirm: () => {
@@ -53,6 +57,7 @@ export function TransactionRow({ transaction: t, today, perspective = null, comp
         notify('Buchung gelöscht.');
       },
     });
+  };
 
   const edit = () => openDialog({ type: 'booking', transactionId: t.id });
 

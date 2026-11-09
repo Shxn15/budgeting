@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   addBooking,
   addObligation,
+  addReceivable,
+  addSavingsGoal,
   addSubscription,
   addTag,
   createAccount,
+  markReceivableReceived,
   processDueSubscriptions,
   transfer,
+  updateSettings,
 } from '../domain/operations';
 import { emptyData, testEnv } from '../domain/testing';
 import { parseDocument } from './document';
@@ -72,6 +76,45 @@ const SCHEMA_2_FILE = `{
   "meta": { "createdAt": "2026-11-08T10:00:00.000Z", "updatedAt": "2026-11-08T12:00:00.000Z", "appVersion": "0.2.0" }
 }`;
 
+/**
+ * A data.json exactly as version 0.3.0 of the app writes it (schema 3):
+ * money others owe me (open without date, open with date and account,
+ * received with its income booking), nested savings goals in a savings
+ * account and the new settings (colour theme, folded sections).
+ * Keep this fixture unchanged forever, like SCHEMA_1_FILE.
+ */
+const SCHEMA_3_FILE = `{
+  "schemaVersion": 3,
+  "accounts": [
+    { "id": "a1", "name": "Bargeld", "type": "cash", "color": "blue", "createdAt": "2026-11-08T10:00:00.000Z" },
+    { "id": "a2", "name": "Sparkasse", "type": "bank", "color": "orange", "createdAt": "2026-11-08T10:00:00.000Z" },
+    { "id": "a3", "name": "Tagesgeld", "type": "savings", "color": "green", "createdAt": "2026-11-09T09:00:00.000Z" }
+  ],
+  "transactions": [
+    { "id": "t1", "kind": "opening", "amount": 20000, "fromAccountId": null, "toAccountId": "a1", "date": "2026-11-08", "note": "", "obligationId": null, "subscriptionId": null, "tagId": null, "affectsBalance": true, "createdAt": "2026-11-08T10:00:00.000Z" },
+    { "id": "t2", "kind": "opening", "amount": 49900, "fromAccountId": null, "toAccountId": "a2", "date": "2026-11-08", "note": "", "obligationId": null, "subscriptionId": null, "tagId": null, "affectsBalance": true, "createdAt": "2026-11-08T10:00:00.000Z" },
+    { "id": "t3", "kind": "opening", "amount": 250000, "fromAccountId": null, "toAccountId": "a3", "date": "2026-11-09", "note": "", "obligationId": null, "subscriptionId": null, "tagId": null, "affectsBalance": true, "createdAt": "2026-11-09T09:00:00.000Z" },
+    { "id": "t4", "kind": "income", "amount": 3500, "fromAccountId": null, "toAccountId": "a1", "date": "2026-11-09", "note": "Konzertkarten von Lisa", "obligationId": null, "subscriptionId": null, "tagId": null, "affectsBalance": true, "createdAt": "2026-11-09T12:00:00.000Z" }
+  ],
+  "obligations": [],
+  "tags": [
+    { "id": "g1", "name": "Max", "color": "violet", "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "createdAt": "2026-11-09T10:00:00.000Z" }
+  ],
+  "subscriptions": [],
+  "receivables": [
+    { "id": "r1", "counterparty": "Max", "title": "Pizza", "amount": 1500, "expectedDate": null, "accountId": null, "tagId": "g1", "note": "", "createdAt": "2026-11-09T10:00:00.000Z", "receivedAt": null, "receiptTransactionId": null },
+    { "id": "r2", "counterparty": "Oma", "title": "Geburtstag", "amount": 5000, "expectedDate": "2026-11-24", "accountId": "a2", "tagId": null, "note": "Überweisung", "createdAt": "2026-11-09T10:05:00.000Z", "receivedAt": null, "receiptTransactionId": null },
+    { "id": "r3", "counterparty": "Lisa", "title": "Konzertkarten", "amount": 3500, "expectedDate": "2026-11-09", "accountId": "a1", "tagId": null, "note": "", "createdAt": "2026-11-09T10:10:00.000Z", "receivedAt": "2026-11-09T12:00:00.000Z", "receiptTransactionId": "t4" }
+  ],
+  "savingsGoals": [
+    { "id": "sg1", "accountId": "a3", "parentId": null, "name": "Japan-Reise", "targetAmount": 300000, "targetDate": "2027-08-01", "allocated": 50000, "color": "red", "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "note": "Tokio und Kyoto", "createdAt": "2026-11-09T09:10:00.000Z" },
+    { "id": "sg2", "accountId": "a3", "parentId": "sg1", "name": "Flug", "targetAmount": 120000, "targetDate": null, "allocated": 40000, "color": "blue", "image": null, "note": "", "createdAt": "2026-11-09T09:11:00.000Z" },
+    { "id": "sg3", "accountId": "a3", "parentId": null, "name": "Notgroschen", "targetAmount": null, "targetDate": null, "allocated": 100000, "color": "yellow", "image": null, "note": "", "createdAt": "2026-11-09T09:12:00.000Z" }
+  ],
+  "settings": { "theme": "dark", "colorTheme": "rose", "collapsedSections": ["overview.recent"], "currency": "EUR" },
+  "meta": { "createdAt": "2026-11-08T10:00:00.000Z", "updatedAt": "2026-11-09T12:00:00.000Z", "appVersion": "0.3.0" }
+}`;
+
 describe('loading data files', () => {
   it('reads a schema-1 file without losing anything', () => {
     const { data, fromVersion, migrated } = parseDocument(SCHEMA_1_FILE, '9.9.9');
@@ -84,11 +127,11 @@ describe('loading data files', () => {
     expect(data.meta.appVersion).toBe('0.1.0');
   });
 
-  it('upgrades a schema-1 file to schema 2: everything stays, new lists start empty', () => {
+  it('upgrades a schema-1 file: everything stays, the lists of schema 2 start empty', () => {
     const { data, migrated, fromVersion } = parseDocument(SCHEMA_1_FILE, '0.2.0');
     expect(fromVersion).toBe(1);
     expect(migrated).toBe(true);
-    expect(data.schemaVersion).toBe(2);
+    expect(data.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(data.tags).toEqual([]);
     expect(data.subscriptions).toEqual([]);
     expect(data.transactions.map((t) => [t.id, t.kind, t.amount, t.tagId, t.subscriptionId, t.affectsBalance])).toEqual([
@@ -98,14 +141,46 @@ describe('loading data files', () => {
     ]);
     expect(data.obligations[0]).toMatchObject({ id: 'o1', title: 'Pizza', accountId: 'a1', tagId: null, dueDate: '2026-11-13' });
     expect(data.accounts.map((a) => a.id)).toEqual(['a1', 'a2']);
-    expect(data.settings).toEqual({ theme: 'dark', currency: 'EUR' });
+    expect(data.settings).toMatchObject({ theme: 'dark', currency: 'EUR' });
   });
 
-  it('reads a schema-2 file without changing anything', () => {
+  it('reads a schema-2 file without losing anything', () => {
     const { data, fromVersion, migrated } = parseDocument(SCHEMA_2_FILE, '9.9.9');
     expect(fromVersion).toBe(2);
     expect(migrated).toBe(CURRENT_SCHEMA_VERSION !== 2);
-    expect(data).toEqual(JSON.parse(SCHEMA_2_FILE));
+    expect(data).toMatchObject({ ...JSON.parse(SCHEMA_2_FILE), schemaVersion: CURRENT_SCHEMA_VERSION });
+  });
+
+  it('upgrades a schema-2 file to schema 3: everything stays, new lists start empty', () => {
+    const { data, migrated, fromVersion } = parseDocument(SCHEMA_2_FILE, '0.3.0');
+    const old = JSON.parse(SCHEMA_2_FILE);
+    expect(fromVersion).toBe(2);
+    expect(migrated).toBe(true);
+    expect(data.schemaVersion).toBe(3);
+    expect(data.receivables).toEqual([]);
+    expect(data.savingsGoals).toEqual([]);
+    expect(data.settings).toEqual({ theme: 'light', colorTheme: 'standard', collapsedSections: [], currency: 'EUR' });
+    expect(data.accounts).toEqual(old.accounts);
+    expect(data.transactions).toEqual(old.transactions);
+    expect(data.obligations).toEqual(old.obligations);
+    expect(data.tags).toEqual(old.tags);
+    expect(data.subscriptions).toEqual(old.subscriptions);
+    expect(data.meta).toEqual(old.meta);
+  });
+
+  it('upgrades a schema-1 file over all steps to the current schema', () => {
+    const { data, fromVersion } = parseDocument(SCHEMA_1_FILE, '0.3.0');
+    expect(fromVersion).toBe(1);
+    expect(data.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(data.obligations[0]).toMatchObject({ title: 'Pizza', counterparty: 'Max', tagId: null });
+    expect(data).toMatchObject({ receivables: [], savingsGoals: [], settings: { theme: 'dark', colorTheme: 'standard' } });
+  });
+
+  it('reads a schema-3 file without changing anything', () => {
+    const { data, fromVersion, migrated } = parseDocument(SCHEMA_3_FILE, '9.9.9');
+    expect(fromVersion).toBe(3);
+    expect(migrated).toBe(CURRENT_SCHEMA_VERSION !== 3);
+    expect(data).toEqual(JSON.parse(SCHEMA_3_FILE));
   });
 
   it('round-trips what the app writes', () => {
@@ -158,6 +233,34 @@ describe('loading data files', () => {
     expect(loaded).toEqual(data);
   });
 
+  it('round-trips receivables, savings goals and the new settings', () => {
+    const env = testEnv();
+    let data = createAccount(emptyData(), { name: 'Bargeld', type: 'cash', color: 'blue', initialBalance: 20000 }, env);
+    data = createAccount(data, { name: 'Tagesgeld', type: 'savings', color: 'green', initialBalance: 250000 }, env);
+    const [cash, savings] = [data.accounts[0]!.id, data.accounts[1]!.id];
+    data = addReceivable(
+      data,
+      { counterparty: 'Max', title: 'Pizza', amount: 1500, expectedDate: null, accountId: null, tagId: null, note: '' },
+      env,
+    );
+    data = addReceivable(
+      data,
+      { counterparty: 'Lisa', title: '', amount: 3500, expectedDate: '2026-11-09', accountId: cash, tagId: null, note: '' },
+      env,
+    );
+    data = markReceivableReceived(data, data.receivables[1]!.id, { accountId: cash, date: '2026-11-09' }, env);
+    const goal = { name: 'Japan-Reise', parentId: null, targetAmount: 300000, targetDate: '2027-08-01', color: 'red', image: PIXEL, note: '' };
+    data = addSavingsGoal(data, { ...goal, accountId: savings, allocate: 50000 }, env);
+    data = addSavingsGoal(
+      data,
+      { ...goal, name: 'Flug', parentId: data.savingsGoals[0]!.id, targetDate: null, image: null, accountId: savings, allocate: 40000 },
+      env,
+    );
+    data = updateSettings(data, { colorTheme: 'lavender', collapsedSections: ['overview.accounts'] });
+    const { data: loaded } = parseDocument(serializeData(data), 'test');
+    expect(loaded).toEqual(data);
+  });
+
   it('rejects broken files instead of starting empty', () => {
     expect(() => parseDocument('{"schemaVersion": 1, "accounts": [', 'test')).toThrow(InvalidDataError);
     expect(() => parseDocument('[]', 'test')).toThrow(InvalidDataError);
@@ -193,7 +296,7 @@ describe('loading data files', () => {
     // A negative amount means the opposite direction.
     expect(data.transactions[1]).toMatchObject({ amount: 300, fromAccountId: 'a1', toAccountId: null });
     expect(data.obligations[0]).toMatchObject({ kind: 'bill', accountId: null, paymentTransactionId: null });
-    expect(data.settings).toEqual({ theme: 'system', currency: 'USD' });
+    expect(data.settings).toEqual({ theme: 'system', colorTheme: 'standard', collapsedSections: [], currency: 'USD' });
   });
 
   it('repairs damaged tags and subscriptions', () => {
@@ -233,6 +336,68 @@ describe('loading data files', () => {
     expect(data.transactions[0]).toMatchObject({ subscriptionId: null, tagId: 'g1', affectsBalance: true });
     expect(data.transactions[1]).toMatchObject({ kind: 'adjustment', tagId: null });
     expect(data.obligations[0]!.tagId).toBeNull();
+  });
+
+  it('repairs damaged receivables, savings goals and settings', () => {
+    const damaged = JSON.stringify({
+      schemaVersion: 3,
+      accounts: [
+        { id: 'a1', name: 'Bargeld', type: 'cash', color: 'blue' },
+        { id: 'a2', name: 'Tagesgeld', type: 'savings', color: 'green' },
+        { id: 'a3', name: 'Depot', type: 'investment', color: 'red' },
+      ],
+      transactions: [{ id: 't1', kind: 'opening', amount: 5000, toAccountId: 'a2', date: '2026-11-09' }],
+      receivables: [
+        { id: 'r1', counterparty: 'Max', amount: -1500, expectedDate: 'irgendwann', accountId: 'gone', tagId: 'gone', receivedAt: '', receiptTransactionId: 'gone' },
+        { id: 'r1', counterparty: 'Duplikat', amount: 1 },
+        { counterparty: 'ohne id', amount: 1 },
+        { id: 'r2', amount: 'viel' },
+      ],
+      savingsGoals: [
+        { id: 'g1', accountId: 'a2', name: '  ', targetAmount: -5, allocated: -300, targetDate: 'bald', color: 'nope', image: 'x' },
+        { id: 'g2', accountId: 'a2', parentId: 'g3', name: 'A', allocated: 100 },
+        { id: 'g3', accountId: 'a2', parentId: 'g2', name: 'B', allocated: 200 },
+        { id: 'g4', accountId: 'a2', parentId: 'g5', name: 'Fremder Elternteil' },
+        { id: 'g5', accountId: 'a3', name: 'Im Depot' },
+        { id: 'g6', accountId: 'gone', name: 'Ohne Konto' },
+        { id: 'g7', name: 'Ohne Konto-Angabe' },
+        { id: 'g8', accountId: 'a2', parentId: 'g8', name: 'Selbst' },
+      ],
+      settings: { theme: 'dark', colorTheme: 'neon', collapsedSections: ['overview.accounts', 7, '', 'overview.accounts', 'overview.recent'] },
+    });
+    const { data } = parseDocument(damaged, 'test', new Date('2026-11-09T10:00:00.000Z'));
+    expect(data.receivables).toHaveLength(1);
+    expect(data.receivables[0]).toMatchObject({
+      counterparty: 'Max',
+      title: '',
+      amount: 1500,
+      expectedDate: null,
+      accountId: null,
+      tagId: null,
+      receivedAt: null,
+      receiptTransactionId: null,
+    });
+    expect(data.savingsGoals.map((g) => g.id)).toEqual(['g1', 'g2', 'g3', 'g4', 'g5', 'g8']);
+    expect(data.savingsGoals[0]).toMatchObject({
+      name: 'Sparziel',
+      targetAmount: null,
+      targetDate: null,
+      allocated: 0,
+      color: 'blue',
+      image: null,
+      parentId: null,
+    });
+    // A loop of parents is broken up, a parent in another account or itself is dropped.
+    const parents = Object.fromEntries(data.savingsGoals.map((g) => [g.id, g.parentId]));
+    expect([parents.g2, parents.g3].filter((p) => p === null)).toHaveLength(1);
+    expect(parents.g4).toBeNull();
+    expect(parents.g8).toBeNull();
+    expect(data.settings).toEqual({
+      theme: 'dark',
+      colorTheme: 'standard',
+      collapsedSections: ['overview.accounts', 'overview.recent'],
+      currency: 'EUR',
+    });
   });
 });
 

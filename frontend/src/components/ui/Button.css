@@ -111,3 +111,15 @@
   width: 16px;
   height: 16px;
 }
+
+/* Text with a trailing icon, e.g. "Alle ›". */
+.btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.btn__label svg {
+  width: 15px;
+  height: 15px;
+}

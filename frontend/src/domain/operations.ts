@@ -10,6 +10,8 @@ import { isImageDataUrl } from './images';
 import { computeBalances } from './ledger';
 import { MAX_CENTS } from './money';
 import { isOpen, obligationTitle } from './obligations';
+import { isReceivableOpen, receivableNote } from './receivables';
+import { allocatedOnAccount, descendantIds, goalLevel, MAX_GOAL_DEPTH, subtreeHeight } from './savings';
 import { followingDueDate, MAX_INTERVAL_COUNT, nextOccurrenceOnOrAfter } from './subscriptions';
 import type {
   Account,
@@ -20,6 +22,8 @@ import type {
   IntervalUnit,
   Obligation,
   ObligationKind,
+  Receivable,
+  SavingsGoal,
   Settings,
   Subscription,
   Tag,
@@ -75,6 +79,18 @@ function findSubscription(data: AppData, id: string): Subscription {
   const subscription = data.subscriptions.find((s) => s.id === id);
   check(subscription, 'Das Abo wurde nicht gefunden.');
   return subscription;
+}
+
+function findReceivable(data: AppData, id: string): Receivable {
+  const receivable = data.receivables.find((r) => r.id === id);
+  check(receivable, 'Der Eintrag wurde nicht gefunden.');
+  return receivable;
+}
+
+function findGoal(data: AppData, id: string): SavingsGoal {
+  const goal = data.savingsGoals.find((g) => g.id === id);
+  check(goal, 'Das Sparziel wurde nicht gefunden.');
+  return goal;
 }
 
 function checkTagRef(data: AppData, tagId: string | null): string | null {
@@ -213,12 +229,24 @@ export function deleteAccount(data: AppData, id: string): AppData {
     sub.accountId === id ? { ...sub, accountId: null, autoPay: false } : sub,
   );
 
+  const receivables = data.receivables.map((r) => {
+    let next = r;
+    if (r.accountId === id) next = { ...next, accountId: null };
+    if (r.receiptTransactionId !== null && removedTransactionIds.has(r.receiptTransactionId)) {
+      next = { ...next, receiptTransactionId: null };
+    }
+    return next;
+  });
+
   return {
     ...data,
     accounts: data.accounts.filter((a) => a.id !== id),
     transactions,
     obligations,
     subscriptions,
+    receivables,
+    // The goals only divide the money of this account – without it they mean nothing.
+    savingsGoals: data.savingsGoals.filter((g) => g.accountId !== id),
   };
 }
 
@@ -287,7 +315,10 @@ export function transfer(data: AppData, input: TransferInput, env: Env = default
   };
 }
 
-/** Deletes a booking. If it paid an obligation, that obligation is open again. */
+/**
+ * Deletes a booking. If it paid an obligation, that obligation is open
+ * again; if it was money I got back, that receivable is open again.
+ */
 export function deleteTransaction(data: AppData, id: string): AppData {
   const tx = data.transactions.find((t) => t.id === id);
   check(tx, 'Die Buchung wurde nicht gefunden.');
@@ -296,6 +327,9 @@ export function deleteTransaction(data: AppData, id: string): AppData {
     transactions: data.transactions.filter((t) => t.id !== id),
     obligations: data.obligations.map((o) =>
       o.paymentTransactionId === id ? { ...o, paidAt: null, paymentTransactionId: null } : o,
+    ),
+    receivables: data.receivables.map((r) =>
+      r.receiptTransactionId === id ? { ...r, receivedAt: null, receiptTransactionId: null } : r,
     ),
   };
 }
@@ -509,7 +543,7 @@ export function updateTag(data: AppData, id: string, input: TagInput): AppData {
   return { ...data, tags: data.tags.map((t) => (t.id === id ? { ...t, ...fields } : t)) };
 }
 
-/** Deletes a tag. Bookings and obligations keep existing, just without the tag. */
+/** Deletes a tag. Bookings, obligations and receivables keep existing, just without the tag. */
 export function deleteTag(data: AppData, id: string): AppData {
   findTag(data, id);
   return {
@@ -517,6 +551,7 @@ export function deleteTag(data: AppData, id: string): AppData {
     tags: data.tags.filter((t) => t.id !== id),
     transactions: data.transactions.map((t) => (t.tagId === id ? { ...t, tagId: null } : t)),
     obligations: data.obligations.map((o) => (o.tagId === id ? { ...o, tagId: null } : o)),
+    receivables: data.receivables.map((r) => (r.tagId === id ? { ...r, tagId: null } : r)),
   };
 }
 
@@ -698,6 +733,237 @@ export function processDueSubscriptions(data: AppData, today: ISODate, env: Env 
 
   if (!changed) return data;
   return { ...data, subscriptions, transactions: [...data.transactions, ...charges] };
+}
+
+// ------------------------------------------------------------- receivables
+
+export interface ReceivableInput {
+  /** From whom, e.g. "Max". */
+  counterparty: string;
+  /** What for, e.g. "Pizza". */
+  title: string;
+  amount: Cents;
+  /** null = not known when. */
+  expectedDate: ISODate | null;
+  /** Account the money will (probably) arrive on. */
+  accountId: string | null;
+  tagId: string | null;
+  note: string;
+}
+
+function checkReceivableInput(data: AppData, input: ReceivableInput): ReceivableInput {
+  const counterparty = cleanText(input.counterparty, TEXT_MAX);
+  const title = cleanText(input.title, TEXT_MAX);
+  check(counterparty.length > 0 || title.length > 0, 'Bitte angeben, wer dir das Geld schuldet.');
+  checkAmount(input.amount);
+  check(input.expectedDate === null || isISODate(input.expectedDate), 'Bitte ein gültiges Datum wählen.');
+  if (input.accountId !== null) findAccount(data, input.accountId);
+  checkTagRef(data, input.tagId);
+  return { ...input, counterparty, title, note: cleanNote(input.note) };
+}
+
+/** Records that someone owes me money ("Max gibt mir noch 20 €"). */
+export function addReceivable(data: AppData, input: ReceivableInput, env: Env = defaultEnv): AppData {
+  const fields = checkReceivableInput(data, input);
+  const receivable: Receivable = {
+    id: env.newId(),
+    ...fields,
+    createdAt: env.now().toISOString(),
+    receivedAt: null,
+    receiptTransactionId: null,
+  };
+  return { ...data, receivables: [...data.receivables, receivable] };
+}
+
+export function updateReceivable(data: AppData, id: string, input: ReceivableInput): AppData {
+  const existing = findReceivable(data, id);
+  const fields = checkReceivableInput(data, input);
+  const receiptId = existing.receiptTransactionId;
+  return {
+    ...data,
+    receivables: data.receivables.map((r) => (r.id === id ? { ...r, ...fields } : r)),
+    transactions:
+      receiptId !== null && existing.tagId !== fields.tagId
+        ? data.transactions.map((t) => (t.id === receiptId ? { ...t, tagId: fields.tagId } : t))
+        : data.transactions,
+  };
+}
+
+/** Deletes a receivable. A booking of the received money stays (the money really arrived). */
+export function deleteReceivable(data: AppData, id: string): AppData {
+  findReceivable(data, id);
+  return { ...data, receivables: data.receivables.filter((r) => r.id !== id) };
+}
+
+export interface ReceiveInput {
+  /** Account the money arrived on; null = only mark as done without a booking. */
+  accountId: string | null;
+  date: ISODate;
+}
+
+/** The money has arrived: books it as income on the account (optional) and closes the entry. */
+export function markReceivableReceived(
+  data: AppData,
+  id: string,
+  input: ReceiveInput,
+  env: Env = defaultEnv,
+): AppData {
+  const receivable = findReceivable(data, id);
+  check(isReceivableOpen(receivable), 'Das Geld ist bereits angekommen.');
+  check(isISODate(input.date), 'Bitte ein gültiges Datum wählen.');
+
+  let transactions = data.transactions;
+  let receiptTransactionId: string | null = null;
+  if (input.accountId !== null) {
+    findAccount(data, input.accountId);
+    const receipt = booking(env, {
+      kind: 'income',
+      amount: receivable.amount,
+      fromAccountId: null,
+      toAccountId: input.accountId,
+      date: input.date,
+      note: receivableNote(receivable),
+      tagId: receivable.tagId,
+    });
+    transactions = [...transactions, receipt];
+    receiptTransactionId = receipt.id;
+  }
+
+  return {
+    ...data,
+    transactions,
+    receivables: data.receivables.map((r) =>
+      r.id === id ? { ...r, receivedAt: env.now().toISOString(), receiptTransactionId } : r,
+    ),
+  };
+}
+
+/** Marks a received entry as open again and removes the booking of the money. */
+export function reopenReceivable(data: AppData, id: string): AppData {
+  const receivable = findReceivable(data, id);
+  check(!isReceivableOpen(receivable), 'Dieser Eintrag ist noch offen.');
+  return {
+    ...data,
+    transactions:
+      receivable.receiptTransactionId === null
+        ? data.transactions
+        : data.transactions.filter((t) => t.id !== receivable.receiptTransactionId),
+    receivables: data.receivables.map((r) =>
+      r.id === id ? { ...r, receivedAt: null, receiptTransactionId: null } : r,
+    ),
+  };
+}
+
+// ------------------------------------------------------------ savings goals
+
+export interface SavingsGoalInput {
+  name: string;
+  /** Goal it belongs to ("Flug" inside "Japan-Reise"); null = top level. */
+  parentId: string | null;
+  /** null = no target amount. */
+  targetAmount: Cents | null;
+  /** null = no date. */
+  targetDate: ISODate | null;
+  color: string;
+  image: string | null;
+  note: string;
+}
+
+export interface NewSavingsGoalInput extends SavingsGoalInput {
+  /** Savings account the goal belongs to. */
+  accountId: string;
+  /** Money of the account assigned right away (0 = none). */
+  allocate: Cents;
+}
+
+const NOT_ENOUGH_FREE = 'Auf dem Sparkonto ist nicht mehr so viel Geld frei, das du zuweisen kannst.';
+
+/** Money of the account that can still be assigned to goals (never negative). */
+function freeToAssign(data: AppData, accountId: string): Cents {
+  const balance = computeBalances(data.accounts, data.transactions).get(accountId) ?? 0;
+  return Math.max(0, balance - allocatedOnAccount(data.savingsGoals, accountId));
+}
+
+function checkGoalInput(data: AppData, accountId: string, input: SavingsGoalInput, ownId: string | null) {
+  const name = cleanText(input.name, NAME_MAX);
+  check(name.length > 0, 'Bitte gib dem Sparziel einen Namen.');
+  if (input.targetAmount !== null) checkAmount(input.targetAmount);
+  check(input.targetDate === null || isISODate(input.targetDate), 'Bitte ein gültiges Datum wählen.');
+  check(isAccountColor(input.color), 'Ungültige Farbe.');
+  if (input.parentId !== null) {
+    const parent = findGoal(data, input.parentId);
+    check(parent.accountId === accountId, 'Das übergeordnete Sparziel gehört zu einem anderen Konto.');
+    if (ownId !== null) {
+      check(
+        parent.id !== ownId && !descendantIds(data.savingsGoals, ownId).has(parent.id),
+        'Ein Sparziel kann nicht in sich selbst oder einem seiner Unterziele liegen.',
+      );
+    }
+    const height = ownId === null ? 1 : subtreeHeight(data.savingsGoals, ownId);
+    check(
+      goalLevel(data.savingsGoals, parent.id) + height <= MAX_GOAL_DEPTH,
+      `Sparziele lassen sich höchstens ${MAX_GOAL_DEPTH} Ebenen tief verschachteln.`,
+    );
+  }
+  return {
+    name,
+    parentId: input.parentId,
+    targetAmount: input.targetAmount,
+    targetDate: input.targetDate,
+    color: input.color,
+    image: checkImage(input.image),
+    note: cleanNote(input.note),
+  };
+}
+
+/** Creates a savings goal (or sub-goal) in a savings account; it is appended to the list. */
+export function addSavingsGoal(data: AppData, input: NewSavingsGoalInput, env: Env = defaultEnv): AppData {
+  const account = findAccount(data, input.accountId);
+  check(account.type === 'savings', 'Sparziele gibt es nur bei Sparkonten.');
+  const fields = checkGoalInput(data, account.id, input, null);
+  checkAmount(input.allocate, { allowZero: true });
+  check(input.allocate <= freeToAssign(data, account.id), NOT_ENOUGH_FREE);
+  const goal: SavingsGoal = {
+    id: env.newId(),
+    accountId: account.id,
+    ...fields,
+    allocated: input.allocate,
+    createdAt: env.now().toISOString(),
+  };
+  return { ...data, savingsGoals: [...data.savingsGoals, goal] };
+}
+
+/** Changes name, target, picture … of a goal; a new parent moves it (with its sub-goals). */
+export function updateSavingsGoal(data: AppData, id: string, input: SavingsGoalInput): AppData {
+  const goal = findGoal(data, id);
+  const fields = checkGoalInput(data, goal.accountId, input, id);
+  return { ...data, savingsGoals: data.savingsGoals.map((g) => (g.id === id ? { ...g, ...fields } : g)) };
+}
+
+/**
+ * Deletes a goal together with its sub-goals. Their money is free again on
+ * the account (it never left it).
+ */
+export function deleteSavingsGoal(data: AppData, id: string): AppData {
+  findGoal(data, id);
+  const removed = descendantIds(data.savingsGoals, id);
+  removed.add(id);
+  return { ...data, savingsGoals: data.savingsGoals.filter((g) => !removed.has(g.id)) };
+}
+
+/**
+ * Assigns money of the account to a goal (`delta` > 0) or takes it back
+ * (`delta` < 0). More than the free money of the account cannot be assigned.
+ */
+export function allocateToSavingsGoal(data: AppData, id: string, delta: Cents): AppData {
+  const goal = findGoal(data, id);
+  checkAmount(delta, { allowNegative: true });
+  if (delta > 0) check(delta <= freeToAssign(data, goal.accountId), NOT_ENOUGH_FREE);
+  else check(goal.allocated + delta >= 0, 'So viel ist diesem Sparziel nicht zugewiesen.');
+  return {
+    ...data,
+    savingsGoals: data.savingsGoals.map((g) => (g.id === id ? { ...g, allocated: g.allocated + delta } : g)),
+  };
 }
 
 // ---------------------------------------------------------------- settings

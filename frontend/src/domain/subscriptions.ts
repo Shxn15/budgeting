@@ -1,4 +1,4 @@
-import { addDays, addMonths, diffDays, monthDiff } from './dates';
+import { addDays, addMonths, diffDays, monthDiff, monthEnd, monthKey } from './dates';
 import type { Cents, ISODate, IntervalUnit, Subscription } from './types';
 
 export type Schedule = Pick<Subscription, 'anchorDate' | 'intervalUnit' | 'intervalCount'>;
@@ -83,6 +83,22 @@ export function yearlyCost(sub: Pick<Subscription, 'amount' | 'intervalUnit' | '
 /** Sum of the monthly costs of all active subscriptions, in whole cents. */
 export function totalMonthlyCost(list: readonly Subscription[]): Cents {
   return Math.round(list.filter((s) => !s.paused).reduce((sum, s) => sum + monthlyCost(s), 0));
+}
+
+/**
+ * What the subscriptions still charge until the end of the month of `today`
+ * – charges already booked do not count, overdue manual ones do.
+ */
+export function remainingThisMonth(list: readonly Subscription[], today: ISODate): { count: number; total: Cents } {
+  const end = monthEnd(monthKey(today));
+  let count = 0;
+  let total = 0;
+  for (const sub of list) {
+    const charges = chargesUntil(sub, end).length;
+    count += charges;
+    total += charges * sub.amount;
+  }
+  return { count, total };
 }
 
 /** "monatlich", "alle 3 Monate", "vierteljährlich", "jährlich", "alle 2 Wochen" ... */

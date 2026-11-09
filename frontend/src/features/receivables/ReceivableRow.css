@@ -1,0 +1,18 @@
+.rc-row__icon {
+  background: var(--success-soft);
+  color: var(--positive);
+}
+
+.rc-row--late .rc-row__icon {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.ob-row--done .rc-row__icon {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+
+.rc-row .ob-row__amount.amount-positive {
+  color: var(--positive);
+}

@@ -55,9 +55,12 @@
 }
 
 .stat-tile__note {
+  /* Up to two lines, then "…". */
+  display: -webkit-box;
   overflow: hidden;
   color: var(--text-3);
   font-size: 12.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }

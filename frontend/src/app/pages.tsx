@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Repeat,
   Settings,
+  Tags,
   type LucideIcon,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
@@ -14,6 +15,7 @@ import { OverviewPage } from '../features/overview/OverviewPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { SpendingPage } from '../features/spending/SpendingPage';
 import { SubscriptionsPage } from '../features/subscriptions/SubscriptionsPage';
+import { TagsPage } from '../features/tags/TagsPage';
 import { TransactionsPage } from '../features/transactions/TransactionsPage';
 import type { PageId } from '../store/uiStore';
 
@@ -38,6 +40,7 @@ export const PAGES: readonly PageDefinition[] = [
   { id: 'obligations', label: 'Zahlungen & Schulden', icon: CalendarClock, component: ObligationsPage, position: 'top' },
   { id: 'subscriptions', label: 'Abos', icon: Repeat, component: SubscriptionsPage, position: 'top' },
   { id: 'spending', label: 'Ausgaben', icon: ChartPie, component: SpendingPage, position: 'top' },
+  { id: 'tags', label: 'Tags', icon: Tags, component: TagsPage, position: 'top' },
   { id: 'transactions', label: 'Buchungen', icon: ArrowLeftRight, component: TransactionsPage, position: 'top' },
   { id: 'settings', label: 'Einstellungen', icon: Settings, component: SettingsPage, position: 'bottom' },
 ];

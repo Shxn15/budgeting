@@ -29,3 +29,44 @@
   align-items: center;
   gap: 6px;
 }
+
+.card__title-note {
+  margin-left: 8px;
+  color: var(--text-3);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 560;
+}
+
+/* Foldable cards: the title is a button, the content sits in .card__body. */
+.card--foldable .card__header {
+  margin-bottom: 0;
+}
+
+.card--foldable .card__body {
+  padding-top: 12px;
+}
+
+.card__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px -10px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  letter-spacing: inherit;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.card__toggle:hover {
+  background: var(--surface-hover);
+}
+
+.card__collapsed-note {
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 540;
+}

@@ -149,10 +149,69 @@ export interface Subscription {
   createdAt: ISODateTime;
 }
 
+/**
+ * Money someone else still owes me ("Max gibt mir noch 20 €"), possibly
+ * without knowing when. Since schema 3.
+ */
+export interface Receivable {
+  id: string;
+  /** From whom, e.g. "Max". */
+  counterparty: string;
+  /** What for, e.g. "Pizza" or "Konzertkarten". */
+  title: string;
+  amount: Cents;
+  /** When the money is expected; null = not known. */
+  expectedDate: ISODate | null;
+  /** Account the money will (probably) arrive on. */
+  accountId: string | null;
+  /** Optional tag, e.g. the person with a picture. */
+  tagId: string | null;
+  note: string;
+  createdAt: ISODateTime;
+  /** null while the money has not arrived yet. */
+  receivedAt: ISODateTime | null;
+  /** Income booking created when the money arrived on an account. */
+  receiptTransactionId: string | null;
+}
+
+/**
+ * A savings goal ("Japan-Reise") inside a savings account. Money of the
+ * account is assigned to goals; goals can contain sub-goals ("Flug" inside
+ * "Japan-Reise"). Since schema 3.
+ *
+ * Only the assignment is stored – the money itself stays on the account, so
+ * the balance is still derived from the bookings alone.
+ */
+export interface SavingsGoal {
+  id: string;
+  /** Savings account the money is kept on. */
+  accountId: string;
+  /** Goal this one belongs to; null = top level. Always in the same account. */
+  parentId: string | null;
+  name: string;
+  /** Amount to reach; null = no target. */
+  targetAmount: Cents | null;
+  /** Day by which the target should be reached; null = no date. */
+  targetDate: ISODate | null;
+  /** Money of the account assigned directly to this goal (sub-goals have their own). Always >= 0. */
+  allocated: Cents;
+  /** Palette key for the initials avatar when there is no picture. */
+  color: string;
+  /** Picture as data URL (shown round). null = initials. */
+  image: string | null;
+  note: string;
+  createdAt: ISODateTime;
+}
+
 export type ThemePreference = 'system' | 'light' | 'dark';
 
 export interface Settings {
+  /** Light or dark (or like Windows). */
   theme: ThemePreference;
+  /** Colour theme such as "rose" (see domain/themes.ts). Since schema 3. */
+  colorTheme: string;
+  /** Sections the user folded away, e.g. "overview.accounts" (see store/selectors.ts). Since schema 3. */
+  collapsedSections: string[];
   /** ISO 4217 currency code. */
   currency: string;
 }
@@ -174,6 +233,10 @@ export interface AppData {
   tags: Tag[];
   /** Since schema 2. */
   subscriptions: Subscription[];
+  /** Since schema 3. */
+  receivables: Receivable[];
+  /** Since schema 3. */
+  savingsGoals: SavingsGoal[];
   settings: Settings;
   meta: Meta;
 }

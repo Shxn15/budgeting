@@ -40,20 +40,32 @@ const (
 	defaultHeight = 800
 )
 
-// Window background colours; they must match --bg in frontend/src/styles/tokens.css
-// so there is no flash of the wrong colour while the UI loads.
-var (
-	backgroundLight = &options.RGBA{R: 243, G: 244, B: 248, A: 255}
-	backgroundDark  = &options.RGBA{R: 13, G: 16, B: 22, A: 255}
-)
+// windowBackground holds the light and dark window background colour of a
+// colour theme (settings.colorTheme). They must match --bg in
+// frontend/src/styles/tokens.css so there is no flash of the wrong colour
+// while the UI loads.
+type windowBackground struct{ light, dark options.RGBA }
+
+var backgrounds = map[string]windowBackground{
+	"standard": {light: options.RGBA{R: 243, G: 244, B: 248, A: 255}, dark: options.RGBA{R: 13, G: 16, B: 22, A: 255}},
+	"rose":     {light: options.RGBA{R: 252, G: 240, B: 244, A: 255}, dark: options.RGBA{R: 23, G: 14, B: 19, A: 255}},
+	"lavender": {light: options.RGBA{R: 244, G: 241, B: 252, A: 255}, dark: options.RGBA{R: 17, G: 14, B: 27, A: 255}},
+	"mint":     {light: options.RGBA{R: 237, G: 247, B: 242, A: 255}, dark: options.RGBA{R: 11, G: 21, B: 18, A: 255}},
+	"peach":    {light: options.RGBA{R: 253, G: 243, B: 236, A: 255}, dark: options.RGBA{R: 23, G: 16, B: 11, A: 255}},
+	"sky":      {light: options.RGBA{R: 237, G: 245, B: 252, A: 255}, dark: options.RGBA{R: 10, G: 18, B: 27, A: 255}},
+}
 
 func main() {
 	app := NewApp(appVersion())
-	theme := initialTheme(app)
+	theme, palette := initialAppearance(app)
 
-	background := backgroundLight
+	colours, ok := backgrounds[palette]
+	if !ok {
+		colours = backgrounds["standard"]
+	}
+	background := colours.light
 	if theme == windows.Dark || (theme == windows.SystemDefault && system.PrefersDarkMode()) {
-		background = backgroundDark
+		background = colours.dark
 	}
 
 	err := wails.Run(&options.App{
@@ -62,7 +74,7 @@ func main() {
 		Height:           defaultHeight,
 		MinWidth:         940,
 		MinHeight:        620,
-		BackgroundColour: background,
+		BackgroundColour: &background,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -103,32 +115,33 @@ func appVersion() string {
 	return cfg.Info.ProductVersion
 }
 
-// initialTheme reads the theme the user chose in the app (stored in
-// data.json) so the title bar and window background match from the very
-// first frame.
-func initialTheme(app *App) windows.Theme {
+// initialAppearance reads the light/dark theme and the colour theme the user
+// chose in the app (stored in data.json) so the title bar and window
+// background match from the very first frame.
+func initialAppearance(app *App) (windows.Theme, string) {
 	if app.store == nil {
-		return windows.SystemDefault
+		return windows.SystemDefault, ""
 	}
 	content, found, err := app.store.Load()
 	if err != nil || !found {
-		return windows.SystemDefault
+		return windows.SystemDefault, ""
 	}
 	var doc struct {
 		Settings struct {
-			Theme string `json:"theme"`
+			Theme      string `json:"theme"`
+			ColorTheme string `json:"colorTheme"`
 		} `json:"settings"`
 	}
 	if json.Unmarshal([]byte(content), &doc) != nil {
-		return windows.SystemDefault
+		return windows.SystemDefault, ""
 	}
 	switch doc.Settings.Theme {
 	case "dark":
-		return windows.Dark
+		return windows.Dark, doc.Settings.ColorTheme
 	case "light":
-		return windows.Light
+		return windows.Light, doc.Settings.ColorTheme
 	default:
-		return windows.SystemDefault
+		return windows.SystemDefault, doc.Settings.ColorTheme
 	}
 }
 
